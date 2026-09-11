@@ -1,0 +1,13 @@
+id,from,to,type,description
+1,2026-08-20,2026-09-25,full-time,"Senior Backend Engineer at Finlo - Python, FastAPI, PostgreSQL, Bengaluru"
+2,2026-08-25,2026-09-30,full-time,"Platform Engineer at Skylane - Kubernetes, GCP, Terraform, Remote"
+3,2026-08-05,2026-09-05,full-time,"Backend Engineer II at Cartful - Go, Kafka, Redis, Bengaluru"
+4,2026-07-15,2026-08-30,full-time,"Senior Software Engineer at Kettle Financial - Java, Spring, Mumbai"
+5,2026-07-20,2026-08-25,contract,"Data Engineer at Nimbus Analytics - Airflow, BigQuery, dbt, Pune"
+6,2026-08-10,2026-09-15,full-time,"SDE II at Brightpath AI - Python, LLM infrastructure, Hyderabad"
+7,2026-08-01,2026-09-10,full-time,"Senior Backend Engineer - Python, Bengaluru"
+8,2026-08-28,2026-09-28,contract,Data Platform Engineer - streaming pipelines
+9,2026-07-25,2026-08-31,full-time,"Backend Developer at Loopwork - Node.js, TypeScript, GraphQL, Remote"
+10,2026-08-08,2026-09-08,full-time,"Software Engineer at Orbital Health - Python, Django, HIPAA systems, Chennai"
+11,2026-07-10,2026-08-20,full-time,"Distributed Systems Engineer at Vantra Systems - Rust, gRPC, Bengaluru"
+12,2026-08-30,2026-09-30,internship,"Backend Intern at Peppermint Labs - Python, Django, Gurgaon"

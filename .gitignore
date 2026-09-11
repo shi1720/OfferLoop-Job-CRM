@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Local env & tooling
+.env
+*.local
+.DS_Store
+
+# sandbox-only proxy CA (never committed)
+.sandbox-ca.crt
+Dockerfile.sandbox
+e2e/node_modules/
+*.egg-info/
+
+# Local credentials and generated work
+.env.*
+!.env.example
+.streamlit/secrets.toml
+*credentials*.json
+*service-account*.json
+*.pem
+*.key
+venv/
+*.py[cod]
+.coverage
+htmlcov/
+*.log

@@ -1,0 +1,12 @@
+{
+  "name": "offerloop-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Playwright tour of the full OfferLoop UI against a running demo stack",
+  "scripts": {
+    "tour": "node tour.js"
+  },
+  "dependencies": {
+    "playwright": "^1.50.0"
+  }
+}

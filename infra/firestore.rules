@@ -1,0 +1,13 @@
+rules_version = '2';
+
+// OfferLoop's clients never talk to Firestore directly — every read and
+// write goes through the Cloud Run API, which authenticates the Firebase
+// ID token server-side and namespaces all data under users/{uid}. The
+// admin SDK bypasses rules, so the safest client-side policy is deny-all.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
