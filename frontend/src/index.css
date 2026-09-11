@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   OfferLoop design tokens — a committed dark theme.
+   Ink-blue ground, signal-lime accent, four reserved status hues, and a
+   validated chart palette (see src/components/charts/).
+--------------------------------------------------------------------------- */
+
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+
+  /* Surfaces */
+  --color-page: #0b0e14;
+  --color-panel: #10141d;
+  --color-card: #151a25;
+  --color-raised: #1b2130;
+  --color-overlay: #232a3b;
+
+  /* Lines */
+  --color-line: #242c3d;
+  --color-line-soft: #1c2231;
+
+  /* Ink */
+  --color-ink: #edf0f6;
+  --color-ink-2: #9aa4b6;
+  --color-ink-3: #626d80;
+
+  /* Brand */
+  --color-accent: #c8f169;
+  --color-accent-strong: #b3e94a;
+  --color-on-accent: #0b0e14;
+
+  /* Reserved status hues (product chrome, not chart series) */
+  --color-applied: #5b9dff;
+  --color-interview: #f5b84b;
+  --color-offer: #43d794;
+  --color-reject: #f4657d;
+
+  /* Chart palette — dark-mode categorical slots (validated) */
+  --color-series-1: #3987e5;
+  --color-series-2: #d95926;
+  --color-series-3: #199e70;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-accent) 30%, transparent);
+}
+
+/* Slim, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+
+/* Utility: subtle card ring used across the app */
+.ring-card {
+  box-shadow: 0 0 0 1px var(--color-line-soft), 0 8px 24px -16px rgb(0 0 0 / 0.8);
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+/* Fade-up entrance for page content */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Login page aurora */
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(4%, -3%) scale(1.06);
+  }
+}
+.animate-drift {
+  animation: drift 14s ease-in-out infinite;
+}

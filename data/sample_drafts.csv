@@ -1,0 +1,107 @@
+id,jobId,type,contents,status
+1,1,cover_letter,"Dear Hiring Manager,
+
+Finlo's job post asks for someone who treats payment reliability as a product feature, and that's how I've worked for four years. At my current company I redesigned our caching layer and cut p95 latency by 40% — the kind of unglamorous work that makes a fintech feel trustworthy. I write Python the way your stack expects: typed, tested, and boring in the best way, with FastAPI and PostgreSQL in production since 2023.
+
+I'd love to bring that bar to your platform team in Bengaluru.
+
+Warm regards,
+Shivam Gupta",sent
+2,1,follow_up_email,"Hi,
+
+I applied for the Senior Backend Engineer role two weeks ago and wanted to check in. Since applying, I shipped a reconciliation service that now processes 2M events a day — very close to the problems your team describes. Happy to walk through the design if useful.
+
+Is there anything else you need from my side?
+
+Best,
+Shivam",sent
+3,3,cover_letter,"Dear Cartful team,
+
+Marketplace infrastructure at your scale runs on queues that never lose an order. I've spent the last two years running Kafka in production — schema evolution, exactly-once consumers, the 3 a.m. rebalances — and I've learned Go well enough to respect its simplicity. Your posting for Backend Engineer II reads like a checklist of the problems I enjoy most.
+
+I'd welcome a conversation.
+
+Regards,
+Shivam Gupta",sent
+4,4,cover_letter,"Dear Hiring Manager,
+
+Kettle Financial's Senior Software Engineer opening caught my eye because I've built the Java side of a payments stack before — Spring services, idempotent APIs, and audits that actually pass. I care about the details that keep money software dependable, and I move fast without breaking ledgers.
+
+Sincerely,
+Shivam Gupta",draft
+5,5,follow_up_email,"Hi,
+
+Following up on my Data Engineer application from July 24. I recently migrated a reporting pipeline to BigQuery and cut its monthly cost by a third, which felt very relevant to your posting. I'd love ten minutes to discuss how I could help Nimbus.
+
+Best,
+Shivam",sent
+6,6,cover_letter,"Dear Brightpath AI team,
+
+I want to build the plumbing that makes LLM products reliable — batching, caching, fallbacks, evals. That's what your SDE II posting describes, and it's what I've been doing with Python for four years, most recently serving model inference behind a 40ms p95. I learn fast, measure everything, and ship.
+
+Warm regards,
+Shivam Gupta",sent
+7,7,cover_letter,"Dear Hiring Manager,
+
+Your Senior Backend Engineer posting is short on details but the stack is exactly mine: Python in Bengaluru, at scale. Four years in, I've owned services end to end — design, delivery, and the on-call that follows — and I hold a high bar for tests and observability.
+
+I'd welcome the chance to learn more about the team.
+
+Regards,
+Shivam Gupta",sent
+8,7,follow_up_email,"Hi,
+
+Checking in on my Senior Backend Engineer application from early August. I remain very interested — the role's Python focus matches my last four years of work. If the team is still reviewing, I'm happy to share code samples or references.
+
+Best,
+Shivam",draft
+9,9,cover_letter,"Dear Loopwork team,
+
+I've spent most of my career in Python, but the service I'm proudest of is a TypeScript GraphQL gateway that unified three legacy APIs — built remotely, shipped on time. Your Backend Developer role looks like more of that: pragmatic Node.js, clean contracts, remote trust.
+
+Best regards,
+Shivam Gupta",sent
+10,10,cover_letter,"Dear Orbital Health team,
+
+Healthcare software fails differently — quietly, and with consequences. Your Software Engineer posting's emphasis on HIPAA-grade Python systems matches how I like to build: defensive, audited, boring on purpose. Django has been my home base for years, and Chennai is family ground.
+
+Sincerely,
+Shivam Gupta",sent
+11,11,cover_letter,"Dear Vantra Systems team,
+
+I've been learning Rust nights and weekends for two years because distributed systems deserve a language that refuses to let you be sloppy. Professionally I've run gRPC services on Kubernetes at meaningful scale. Your Distributed Systems Engineer role is the intersection I've been working toward.
+
+Regards,
+Shivam Gupta",draft
+12,11,follow_up_email,"Hi,
+
+Following up on my Distributed Systems Engineer application from mid-July. Since then I've open-sourced a small Raft implementation in Rust — it seemed like the most honest way to show interest. Link available on request.
+
+Is the role still open?
+
+Best,
+Shivam",sent
+13,2,follow_up_email,"Hi,
+
+I wanted to follow up on my Platform Engineer application. My recent work moving CI/CD onto GCP with Terraform mirrors your stack closely, and I'd be glad to talk through it. Thanks for your time!
+
+Best,
+Shivam",draft
+14,5,cover_letter,"Dear Nimbus Analytics team,
+
+Contract work suits how I operate: land, deliver, document, hand over. Your Data Engineer posting's Airflow-BigQuery-dbt stack is one I've run in production, including a migration that cut costs 33% while doubling daily model runs. I can be effective in week one.
+
+Regards,
+Shivam Gupta",draft
+15,99,follow_up_email,"Hi,
+
+Following up on my application from earlier this summer — I know inboxes overflow. Still very interested and happy to provide anything that helps the decision.
+
+Best,
+Shivam",sent
+16,99,cover_letter,"Dear Hiring Manager,
+
+My four years of backend experience — Python, PostgreSQL, Kafka — line up well with the role, and I'd bring the same energy I bring to every team: high standards, low ego, fast feedback.
+
+Regards,
+Shivam Gupta",draft
