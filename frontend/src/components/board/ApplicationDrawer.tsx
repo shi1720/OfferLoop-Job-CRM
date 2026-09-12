@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Copy,
   FileText,
+  KeyRound,
   Mail,
   Send,
   Sparkles,
@@ -14,7 +15,7 @@ import {
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { api } from "../../api";
+import { ApiError, api } from "../../api";
 import { cn, daysSince, longDate, timeAgo } from "../../lib/format";
 import { STATUSES, STATUS_LABEL, type Draft, type DraftType, type Status } from "../../types";
 import { useToast } from "../Toast";
@@ -35,6 +36,7 @@ export function ApplicationDrawer({ applicationId, onClose }: { applicationId: s
 
   const [notes, setNotes] = useState<string | null>(null);
   const [instructions, setInstructions] = useState("");
+  const [engineError, setEngineError] = useState<{ code: string; message: string } | null>(null);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -45,6 +47,7 @@ export function ApplicationDrawer({ applicationId, onClose }: { applicationId: s
     void queryClient.invalidateQueries({ queryKey: ["applications"] });
     void queryClient.invalidateQueries({ queryKey: ["application", applicationId] });
     void queryClient.invalidateQueries({ queryKey: ["drafts"] });
+    void queryClient.invalidateQueries({ queryKey: ["profile"] }); // momentum + free allowance
   };
 
   const setStatus = useMutation({
@@ -58,6 +61,7 @@ export function ApplicationDrawer({ applicationId, onClose }: { applicationId: s
   const generate = useMutation({
     mutationFn: (type: DraftType) => api.drafts.generate(applicationId, type, instructions.trim()),
     onSuccess: (draft) => {
+      setEngineError(null);
       toast(
         draft.grounded_on.length > 0
           ? `Draft ready — grounded on ${draft.grounded_on.length} of your past drafts`
@@ -65,7 +69,14 @@ export function ApplicationDrawer({ applicationId, onClose }: { applicationId: s
       );
       invalidate();
     },
-    onError: (error) => toast(error.message, "err"),
+    onError: (error) => {
+      // Structured engine errors get an inline banner with a fix, not just a toast.
+      if (error instanceof ApiError && error.code && (error.code === "key_required" || error.code.startsWith("gemini_"))) {
+        setEngineError({ code: error.code, message: error.message });
+      } else {
+        toast(error.message, "err");
+      }
+    },
   });
 
   const saveNotes = useMutation({
@@ -168,6 +179,25 @@ export function ApplicationDrawer({ applicationId, onClose }: { applicationId: s
           <h3 className="font-display text-sm font-semibold tracking-wide">Outreach drafts</h3>
           <span className="text-xs text-ink-3">{drafts?.length ?? 0} total</span>
         </div>
+
+        {engineError && (
+          <div
+            role="alert"
+            className="mt-3 flex items-start gap-2.5 rounded-xl border border-reject/40 bg-reject/5 px-3.5 py-3"
+          >
+            <KeyRound size={14} className="mt-0.5 shrink-0 text-reject" />
+            <div className="min-w-0 text-[13px]">
+              <p className="text-ink">{engineError.message}</p>
+              {(engineError.code === "key_required" ||
+                engineError.code === "gemini_key_invalid" ||
+                engineError.code === "gemini_quota_exhausted") && (
+                <Link to="/profile" className="mt-1 inline-block font-medium text-accent hover:underline">
+                  {engineError.code === "key_required" ? "Add your free Gemini key →" : "Manage your key →"}
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="mt-3 grid grid-cols-2 gap-2">
           <GenerateButton
@@ -329,7 +359,7 @@ function DraftItem({ draft, onChanged }: { draft: Draft; onChanged: () => void }
   const update = useMutation({
     mutationFn: (payload: { contents?: string; status?: "draft" | "sent" }) => api.drafts.update(draft.id, payload),
     onSuccess: (_, payload) => {
-      toast(payload.status === "sent" ? "Marked sent — staleness clock reset" : "Draft saved");
+      toast(payload.status === "sent" ? "Marked sent — +15 momentum, staleness clock reset" : "Draft saved");
       onChanged();
     },
   });

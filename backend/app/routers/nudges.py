@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import User, get_current_user
 from ..deps import get_repo
-from ..models import NudgeStatus
+from ..models import NudgeStatus, Profile
 from ..repos.base import Repo
+from ..services import engine
 
 router = APIRouter(prefix="/api/nudges", tags=["nudges"])
 
@@ -23,7 +24,10 @@ def list_nudges(
 
 @router.post("/{nudge_id}/done")
 def mark_done(nudge_id: str, user: User = Depends(get_current_user), repo: Repo = Depends(get_repo)):
-    return _set_status(repo, user.uid, nudge_id, NudgeStatus.DONE)
+    result = _set_status(repo, user.uid, nudge_id, NudgeStatus.DONE)
+    profile = repo.get_profile(user.uid) or Profile(uid=user.uid, name=user.name)
+    engine.award(repo, profile, "nudge_done")
+    return result
 
 
 @router.post("/{nudge_id}/dismiss")

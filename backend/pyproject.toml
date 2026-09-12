@@ -10,6 +10,7 @@ dependencies = [
     "pydantic-settings>=2.3",
     "python-multipart>=0.0.9",
     "httpx>=0.27",  # Firebase auth helper proxy (live mode)
+    "cryptography>=42",  # at-rest encryption for user-supplied API keys
     # Live (GCP) mode — imported lazily, demo mode never touches them
     "google-genai>=1.16",
     "google-cloud-firestore>=2.16",

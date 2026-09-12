@@ -62,6 +62,8 @@ export interface Nudge {
   created_at: string;
 }
 
+export type EngineSource = "your_key" | "free_credits" | "key_required" | "demo";
+
 export interface Profile {
   uid: string;
   name: string;
@@ -71,6 +73,12 @@ export interface Profile {
   tone: string;
   achievements: string;
   style_rules: string;
+  onboarded: boolean;
+  points: number;
+  level: string;
+  gemini_key_masked: string | null;
+  free_remaining: number;
+  engine: EngineSource;
 }
 
 export interface RowError {

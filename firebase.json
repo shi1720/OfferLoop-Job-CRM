@@ -1,0 +1,15 @@
+{
+  "hosting": {
+    "public": "infra/hosting",
+    "ignore": ["**/.*"],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "offerloop",
+          "region": "asia-south1"
+        }
+      }
+    ]
+  }
+}

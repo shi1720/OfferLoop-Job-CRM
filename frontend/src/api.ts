@@ -25,6 +25,9 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** Machine-readable code from structured error bodies, e.g.
+     * "key_required" | "key_invalid" | "gemini_quota_exhausted". */
+    public code: string | null = null,
   ) {
     super(message);
   }
@@ -42,13 +45,21 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   if (!response.ok) {
     let detail = response.statusText;
+    let code: string | null = null;
     try {
       const body = await response.json();
-      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+      if (typeof body.detail === "string") {
+        detail = body.detail;
+      } else if (body.detail && typeof body.detail.message === "string") {
+        detail = body.detail.message;
+        code = body.detail.code ?? null;
+      } else {
+        detail = JSON.stringify(body.detail);
+      }
     } catch {
       /* non-JSON error body */
     }
-    throw new ApiError(response.status, detail);
+    throw new ApiError(response.status, detail, code);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -115,5 +126,8 @@ export const api = {
     get: () => request<Profile>("/api/profile"),
     update: (payload: Partial<Profile>) =>
       request<Profile>("/api/profile", { method: "PUT", body: JSON.stringify(payload) }),
+    setGeminiKey: (key: string) =>
+      request<Profile>("/api/profile/gemini-key", { method: "PUT", body: JSON.stringify({ key }) }),
+    removeGeminiKey: () => request<Profile>("/api/profile/gemini-key", { method: "DELETE" }),
   },
 };

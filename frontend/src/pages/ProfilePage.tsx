@@ -3,6 +3,7 @@ import { Save, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { api } from "../api";
+import { EngineCard } from "../components/EngineCard";
 import { useToast } from "../components/Toast";
 import { Button, Field, Spinner, inputClass } from "../components/ui";
 import type { Profile } from "../types";
@@ -128,6 +129,8 @@ export default function ProfilePage() {
           </Button>
         </div>
       </form>
+
+      <EngineCard />
     </div>
   );
 }

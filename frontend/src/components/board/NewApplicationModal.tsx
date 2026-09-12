@@ -24,8 +24,9 @@ export function NewApplicationModal({ onClose }: { onClose: () => void }) {
         applied_at: new Date(`${form.applied_at}T00:00:00Z`).toISOString(),
       }),
     onSuccess: () => {
-      toast("Application logged — the cadence clock is ticking");
+      toast("Application logged — +10 momentum, the cadence clock is ticking");
       void queryClient.invalidateQueries({ queryKey: ["applications"] });
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
       onClose();
     },
     onError: (error) => toast(error.message, "err"),

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { useAuth } from "./auth";
+import { OnboardingTour } from "./components/OnboardingTour";
 import { Sidebar } from "./components/Sidebar";
 import { Spinner } from "./components/ui";
 import AnalyticsPage from "./pages/AnalyticsPage";
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <OnboardingTour />
     </div>
   );
 }

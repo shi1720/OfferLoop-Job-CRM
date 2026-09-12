@@ -10,10 +10,13 @@ from ..models import (
     Application,
     ApplicationCreate,
     ApplicationUpdate,
+    Profile,
+    Status,
     StatusChange,
     utcnow,
 )
 from ..repos.base import Repo
+from ..services import engine
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
@@ -45,6 +48,8 @@ def create_application(
     if not app.role:
         raise HTTPException(status_code=422, detail="role is required")
     repo.put_application(app)
+    profile = repo.get_profile(user.uid) or Profile(uid=user.uid, name=user.name)
+    engine.award(repo, profile, "application_logged")
     return app
 
 
@@ -75,10 +80,15 @@ def update_application(
     if payload.status is not None and payload.status != app.status:
         # Every phase transition is recorded — the persistent state history
         # the problem statement asks for, and the input to analytics.
+        first_time = all(change.to_status != payload.status for change in app.status_history)
         app.status_history.append(
             StatusChange(from_status=app.status, to_status=payload.status, at=utcnow(), note=payload.status_note)
         )
         app.status = payload.status
+        if first_time and payload.status in (Status.INTERVIEW, Status.OFFER):
+            profile = repo.get_profile(user.uid) or Profile(uid=user.uid, name=user.name)
+            event = "reached_interview" if payload.status == Status.INTERVIEW else "reached_offer"
+            engine.award(repo, profile, event)
 
     app.touch()
     repo.put_application(app)

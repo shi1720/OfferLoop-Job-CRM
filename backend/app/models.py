@@ -144,6 +144,10 @@ class Profile(BaseModel):
     tone: str = "warm, direct, confident"
     achievements: str = ""
     style_rules: str = ""  # hard writing constraints applied to every draft
+    gemini_api_key_enc: str = ""  # user's own key (encrypted at rest; never returned)
+    free_used: int = 0  # server-key generations consumed from the free allowance
+    onboarded: bool = False  # first-login tour completed/skipped
+    points: int = 0  # momentum score, awarded server-side
 
 
 # ---------------------------------------------------------------------------
@@ -223,6 +227,30 @@ class ProfileUpdate(BaseModel):
     tone: str | None = None
     achievements: str | None = None
     style_rules: str | None = None
+    onboarded: bool | None = None
+
+
+class GeminiKeyUpdate(BaseModel):
+    key: str
+
+
+class PublicProfile(BaseModel):
+    """Profile as the API returns it — the raw key never leaves the server."""
+
+    uid: str
+    name: str = ""
+    headline: str = ""
+    years_experience: float = 0
+    skills: list[str] = Field(default_factory=list)
+    tone: str = ""
+    achievements: str = ""
+    style_rules: str = ""
+    onboarded: bool = False
+    points: int = 0
+    level: str = "Starter"
+    gemini_key_masked: str | None = None  # "\u2022\u2022\u2022\u2022 1a2b" or None
+    free_remaining: int = 0
+    engine: str = "demo"  # your_key | free_credits | key_required | demo
 
 
 class ScanReport(BaseModel):

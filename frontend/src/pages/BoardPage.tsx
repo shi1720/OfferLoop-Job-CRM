@@ -13,6 +13,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { api } from "../api";
+import { ActivationChecklist } from "../components/board/ActivationChecklist";
 import { ApplicationCard } from "../components/board/ApplicationCard";
 import { ApplicationDrawer } from "../components/board/ApplicationDrawer";
 import { NewApplicationModal } from "../components/board/NewApplicationModal";
@@ -64,6 +65,8 @@ export default function BoardPage() {
       toast(`Moved to ${STATUS_LABEL[updated.status]}`);
       void queryClient.invalidateQueries({ queryKey: ["applications"] });
       void queryClient.invalidateQueries({ queryKey: ["nudges"] });
+      // first-time Interview/Offer transitions award momentum server-side
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
   });
 
@@ -107,15 +110,23 @@ export default function BoardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => scan.mutate()} disabled={scan.isPending}>
+          <Button variant="outline" onClick={() => scan.mutate()} disabled={scan.isPending} data-tour="scan">
             {scan.isPending ? <Spinner /> : <RadarIcon size={15} />}
             Scan my pipeline
           </Button>
-          <Button variant="primary" onClick={() => setCreating(true)}>
+          <Button variant="primary" onClick={() => setCreating(true)} data-tour="log-app">
             <Plus size={15} /> Log application
           </Button>
         </div>
       </header>
+
+      <ActivationChecklist
+        apps={apps}
+        drafts={drafts}
+        onLog={() => setCreating(true)}
+        onOpenFirst={apps?.length ? () => openDrawer(apps[0].id) : null}
+        onScan={() => scan.mutate()}
+      />
 
       {isLoading ? (
         <div className="flex flex-1 items-center justify-center">

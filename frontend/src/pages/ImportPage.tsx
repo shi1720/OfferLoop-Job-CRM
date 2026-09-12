@@ -22,7 +22,7 @@ export default function ImportPage() {
     onSuccess: (result) => {
       setReport(result);
       toast(
-        `Imported ${result.postings.accepted + result.postings.updated} postings and ${result.drafts.accepted + result.drafts.updated} drafts in ${result.duration_ms} ms`,
+        `Imported ${result.postings.accepted + result.postings.updated} postings and ${result.drafts.accepted + result.drafts.updated} drafts in ${result.duration_ms} ms — +25 momentum`,
       );
       void queryClient.invalidateQueries();
     },

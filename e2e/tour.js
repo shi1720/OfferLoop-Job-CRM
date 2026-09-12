@@ -48,7 +48,36 @@ async function shot(page, name) {
 
   await page.getByRole("button", { name: /Enter OfferLoop/ }).click();
   await page.waitForSelector("text=Pipeline", { timeout: 10000 });
-  await page.waitForTimeout(800);
+
+  // --- Onboarding tour (auto-starts for fresh profiles) ---
+  await page.waitForSelector("text=Your pipeline, on one board", { timeout: 10000 });
+  await page.waitForTimeout(400);
+  await shot(page, "09-onboarding");
+  const stepTitles = [
+    "Log every application",
+    "The nudge engine",
+    "Nudges arrive pre-written",
+    "Bring your whole search",
+    "Make it sound like you",
+  ];
+  let seenAllSteps = true;
+  for (const title of stepTitles) {
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await page.waitForTimeout(450); // spotlight glide
+    if (!(await page.getByText(title).isVisible())) seenAllSteps = false;
+  }
+  check("onboarding tour walks all six steps", seenAllSteps);
+  await page.getByRole("button", { name: /Start building momentum/ }).click();
+  await page.waitForTimeout(600);
+  check("tour closes on finish", !(await page.getByText("Skip tour").isVisible()));
+  check("momentum chip shows score", await page.getByText(/\d+ momentum/).isVisible());
+
+  // Replay via the "?" button, then skip.
+  await page.getByRole("button", { name: "Replay the tour" }).click();
+  await page.waitForSelector("text=Your pipeline, on one board");
+  check("tour is replayable from the sidebar", await page.getByText("Skip tour").isVisible());
+  await page.getByText("Skip tour").click();
+  await page.waitForTimeout(500);
 
   // --- Board ---
   check(
@@ -106,6 +135,7 @@ async function shot(page, name) {
   // --- Profile ---
   await page.getByText("Profile & voice").click();
   await page.waitForSelector("text=grounding context");
+  check("AI engine card is present", await page.getByText("AI engine").isVisible());
   await page.waitForTimeout(400);
   await shot(page, "08-profile");
 

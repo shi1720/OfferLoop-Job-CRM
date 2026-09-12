@@ -19,14 +19,18 @@ freely without ever double-nudging anyone.
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import datetime, timedelta
 
 from ..config import Settings
-from ..models import Application, DraftType, Nudge, ScanReport, Status, utcnow
+from ..models import Application, DraftType, Nudge, Profile, ScanReport, Status, utcnow
 from ..repos.base import Repo
+from . import engine as engine_mod
 from .generation import generate_draft
-from .llm import Intelligence
+from .llm import GeminiError, Intelligence
+
+log = logging.getLogger("offerloop.nudges")
 
 
 def _last_transition_to(app: Application, status: Status) -> datetime | None:
@@ -57,6 +61,16 @@ def scan_user(
     budget = settings.max_generated_per_scan if generation_budget is None else generation_budget
     report = ScanReport()
     all_nudges = repo.list_nudges(uid)
+
+    # Auto-drafts run on the user's own key when set; otherwise on the
+    # server key while their free allowance lasts; otherwise the nudge is
+    # still created, just without a pre-written draft.
+    profile = repo.get_profile(uid) or Profile(uid=uid)
+    writer, source = engine_mod.engine_for(settings, intelligence, profile)
+    if source == engine_mod.KEY_REQUIRED:
+        budget = 0
+    elif source == engine_mod.FREE_CREDITS:
+        budget = min(budget, max(0, settings.free_generations - profile.free_used))
 
     for app in repo.list_applications(uid):
         report.scanned += 1
@@ -89,16 +103,26 @@ def scan_user(
                     if repo.create_nudge_if_absent(nudge):
                         report.nudges_created += 1
                         if report.drafts_generated < budget:
-                            draft = generate_draft(
-                                repo,
-                                intelligence,
-                                app,
-                                DraftType.FOLLOW_UP_EMAIL,
-                                touch=next_touch,
-                            )
-                            nudge.draft_id = draft.id
-                            repo.update_nudge(nudge)
-                            report.drafts_generated += 1
+                            try:
+                                draft = generate_draft(
+                                    repo,
+                                    writer,
+                                    app,
+                                    DraftType.FOLLOW_UP_EMAIL,
+                                    touch=next_touch,
+                                )
+                            except GeminiError as exc:
+                                # A scan must never fail on a writer error —
+                                # the nudge stands, just without a draft.
+                                log.warning("autodraft skipped for %s: %s", app.id, exc)
+                                budget = report.drafts_generated  # stop trying this run
+                            else:
+                                nudge.draft_id = draft.id
+                                repo.update_nudge(nudge)
+                                report.drafts_generated += 1
+                                if source == engine_mod.FREE_CREDITS:
+                                    profile.free_used += 1
+                                    repo.put_profile(profile)
 
         elif app.status == Status.INTERVIEW:
             moved_at = _last_transition_to(app, Status.INTERVIEW)

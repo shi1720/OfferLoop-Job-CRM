@@ -7,7 +7,9 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from ..auth import User, get_current_user
 from ..config import Settings, get_settings
 from ..deps import get_intelligence, get_repo
+from ..models import Profile
 from ..repos.base import Repo
+from ..services import engine
 from ..services.ingest import run_import
 from ..services.llm import Intelligence
 
@@ -34,6 +36,7 @@ async def import_csvs(
     user: User = Depends(get_current_user),
     repo: Repo = Depends(get_repo),
     intelligence: Intelligence = Depends(get_intelligence),
+    settings: Settings = Depends(get_settings),
 ):
     """Ingest the evaluation datasets.
 
@@ -45,7 +48,13 @@ async def import_csvs(
     if postings_payload is None and drafts_payload is None:
         raise HTTPException(status_code=422, detail="Provide a postings and/or drafts CSV")
 
-    return run_import(repo, intelligence, user.uid, postings=postings_payload, drafts=drafts_payload)
+    # Extraction/embeddings run on the user's key when set; with no key and
+    # no allowance they degrade gracefully to regex/lexical (never block).
+    profile = repo.get_profile(user.uid) or Profile(uid=user.uid, name=user.name)
+    chosen, _source = engine.engine_for(settings, intelligence, profile)
+    report = run_import(repo, chosen, user.uid, postings=postings_payload, drafts=drafts_payload)
+    engine.award(repo, profile, "import_completed")
+    return report
 
 
 @router.get("/history")

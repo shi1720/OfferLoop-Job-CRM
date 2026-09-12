@@ -16,7 +16,7 @@ routers ──► services ──► adapters
 
 Selected by `OFFERLOOP_APP_MODE`. Consequences:
 
-- **CI needs no secrets.** All 72 backend tests exercise the real pipeline logic against the
+- **CI needs no secrets.** All 105 backend tests exercise the real pipeline logic against the
   memory adapter and the deterministic writer.
 - **Judges can run the product in one command** with no GCP project.
 - **The demo is honest.** Demo mode boots by pushing `data/sample_*.csv` through the same
@@ -73,6 +73,23 @@ Model routing: `gemini-3.7-flash` for extraction/follow-ups (volume, latency, co
 `gemini-3.1-pro-preview` for cover letters (quality), falling back
 `3.1 Pro → 3.6 Flash → 3.5 Flash-Lite`; extraction ultimately falls back to regex. An LLM outage
 degrades quality, never availability.
+
+## Engine selection & unit economics (BYOK)
+
+`services/engine.py` picks the intelligence for every request, per user, in strict order:
+the user's own Gemini key (Fernet-encrypted at rest with `OFFERLOOP_KEY_SECRET`, validated
+live against the Gemini API before acceptance, returned only masked) → the server key while
+the user's free allowance lasts (`free_used` is counted server-side on the profile, and only
+on *success* — a failed generation never burns a credit) → a structured `402 key_required`.
+Callers that can degrade (extraction, embeddings) get the template/lexical engine instead of
+an error, so imports never block. Gemini failures are classified into a four-code taxonomy
+(`key_invalid | quota_exhausted | timeout | unavailable`) mapped to `400/429/504/502` with
+human-readable fixes.
+
+The same module owns **momentum**: points are awarded exclusively server-side for real actions
+(log 10, send 15, nudge done 20, import 25, first interview 30, first offer 100), with
+transition awards keyed to first-time status changes so bouncing a card back and forth can't
+farm points.
 
 ## Frontend
 

@@ -29,6 +29,29 @@ from typing import Protocol
 
 log = logging.getLogger("offerloop.llm")
 
+
+class GeminiError(RuntimeError):
+    """A Gemini failure with a machine-readable code the API/UI can act on.
+
+    codes: key_invalid | quota_exhausted | timeout | unavailable
+    """
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
+def classify_gemini_error(exc: Exception) -> str:
+    text = str(exc)
+    if "API_KEY_INVALID" in text or "API key not valid" in text:
+        return "key_invalid"
+    if "RESOURCE_EXHAUSTED" in text or "429" in text or "quota" in text.lower():
+        return "quota_exhausted"
+    if "timed out" in text.lower() or "timeout" in text.lower() or "deadline" in text.lower():
+        return "timeout"
+    return "unavailable"
+
+
 # ---------------------------------------------------------------------------
 # Context passed to the writer
 # ---------------------------------------------------------------------------
@@ -281,7 +304,10 @@ class GeminiIntelligence:
             except Exception as exc:  # noqa: BLE001 — any model error means "try the next"
                 log.warning("model %s failed (%s); falling back", model, exc)
                 last_error = exc
-        raise RuntimeError(f"all Gemini models failed: {last_error}")
+        raise GeminiError(
+            classify_gemini_error(last_error) if last_error else "unavailable",
+            f"all Gemini models failed: {last_error}",
+        )
 
     # -- Intelligence ------------------------------------------------------
     def extract_postings(self, descriptions: list[str]) -> list[dict]:

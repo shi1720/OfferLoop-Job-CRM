@@ -155,5 +155,5 @@ action rate, and 8 weeks of momentum. Tests: `tests/test_analytics.py`.
   URL), verified email, and expected service account are all enforced
 - Firestore batched writes; per-user namespacing keyed by verified uid
 - Model fallback chain + regex extraction fallback: no single Gemini failure breaks a flow
-- 72 backend tests + 5 frontend tests run credential-free in CI; the Playwright tour in
+- 105 backend tests + 5 frontend tests run credential-free in CI; the Playwright tour in
   [`e2e/`](../e2e/) click-tests the full UI locally (`make tour`)

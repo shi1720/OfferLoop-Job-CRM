@@ -63,8 +63,9 @@ export default function NudgesPage() {
     mutationFn: ({ id, action }: { id: string; action: "done" | "dismiss" }) =>
       action === "done" ? api.nudges.done(id) : api.nudges.dismiss(id),
     onSuccess: (_, { action }) => {
-      toast(action === "done" ? "Nice — momentum kept" : "Dismissed", action === "done" ? "ok" : "info");
+      toast(action === "done" ? "Done — +20 momentum" : "Dismissed", action === "done" ? "ok" : "info");
       invalidate();
+      if (action === "done") void queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
   });
 

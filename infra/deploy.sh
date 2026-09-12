@@ -24,6 +24,8 @@ PROJECT_ID="${PROJECT_ID:?Set PROJECT_ID=your-gcp-project}"
 REGION="${REGION:-asia-south1}"
 SERVICE="${SERVICE:-offerloop}"
 FIREBASE_WEB_CONFIG="${FIREBASE_WEB_CONFIG:-}"
+GEMINI_API_KEY="${GEMINI_API_KEY:-}"        # optional: AI Studio key instead of Vertex
+FREE_GENERATIONS="${FREE_GENERATIONS:-30}"  # free AI drafts per user before BYOK kicks in
 
 RUN_SA="offerloop-run@${PROJECT_ID}.iam.gserviceaccount.com"
 SCHED_SA="offerloop-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
@@ -58,14 +60,43 @@ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --member="serviceAccount:${RUN_SA}" --role="roles/firebaseauth.admin" --quiet >/dev/null
 
 echo "==> 4/5 Deploying to Cloud Run (build from source)"
+
+# OFFERLOOP_KEY_SECRET encrypts users' stored Gemini keys (BYOK). Reuse the
+# secret already on the service if there is one — rotating it silently would
+# invalidate every stored key — otherwise generate a fresh one.
+EXISTING_SECRET="$(gcloud run services describe "${SERVICE}" --region "${REGION}" --format=json 2>/dev/null \
+  | python3 -c '
+import json, sys
+try:
+    envs = json.load(sys.stdin)["spec"]["template"]["spec"]["containers"][0].get("env", [])
+    print(next((e.get("value", "") for e in envs if e["name"] == "OFFERLOOP_KEY_SECRET"), ""))
+except Exception:
+    print("")' || true)"
+KEY_SECRET="${OFFERLOOP_KEY_SECRET:-${EXISTING_SECRET}}"
+if [ -z "${KEY_SECRET}" ]; then
+  KEY_SECRET="$(openssl rand -hex 32)"
+  echo "    generated a new OFFERLOOP_KEY_SECRET"
+fi
+
 # One flag with a custom '##' delimiter: gcloud treats repeated
 # --set-env-vars as a replacement (split flags silently drop vars), and
 # the delimiter must never occur inside a value — '@' is out (service
 # account emails), ',' is out (model lists, JSON config).
 ENV_VARS="OFFERLOOP_APP_MODE=live"
 ENV_VARS+="##OFFERLOOP_GCP_PROJECT=${PROJECT_ID}"
-ENV_VARS+="##OFFERLOOP_USE_VERTEX=true"
-ENV_VARS+="##OFFERLOOP_VERTEX_LOCATION=global"
+if [ -n "${GEMINI_API_KEY}" ]; then
+  # AI Studio key mode (no Vertex billing needed). Free-tier keys have no
+  # quota on the pro/preview models, so pin flash models with fallbacks.
+  ENV_VARS+="##OFFERLOOP_USE_VERTEX=false"
+  ENV_VARS+="##OFFERLOOP_GEMINI_API_KEY=${GEMINI_API_KEY}"
+  ENV_VARS+="##OFFERLOOP_MODEL_FLASH=${MODEL_FLASH:-gemini-3.6-flash}"
+  ENV_VARS+="##OFFERLOOP_MODEL_PRO=${MODEL_PRO:-gemini-3.6-flash}"
+else
+  ENV_VARS+="##OFFERLOOP_USE_VERTEX=true"
+  ENV_VARS+="##OFFERLOOP_VERTEX_LOCATION=global"
+fi
+ENV_VARS+="##OFFERLOOP_KEY_SECRET=${KEY_SECRET}"
+ENV_VARS+="##OFFERLOOP_FREE_GENERATIONS=${FREE_GENERATIONS}"
 ENV_VARS+="##OFFERLOOP_SCHEDULER_SERVICE_ACCOUNT=${SCHED_SA}"
 ENV_VARS+="##OFFERLOOP_FIREBASE_WEB_CONFIG=${FIREBASE_WEB_CONFIG}"
 

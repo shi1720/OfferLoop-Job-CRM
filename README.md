@@ -44,6 +44,8 @@ engine.**
 | **Scheduled nudges** | **Cloud Scheduler** scans every pipeline hourly. Quiet applications trigger a 3-touch follow-up cadence (5 → 7 → 10 days) with the follow-up email *already drafted and attached*. Interviews trigger thank-you nudges; offers and rejections get their own rules. Idempotent by construction — a rerun never double-nudges. |
 | **Bulk CSV ingestion** | Drop postings (`id, from, to, type, description`) and drafts (`id, jobId, type, contents, status`). Gemini Flash structures free-text descriptions in batched calls, drafts link to postings by `jobId`, orphans are kept and flagged, bad rows are rejected individually with reasons, and re-imports update instead of duplicating. |
 | **Funnel analytics** | Interview rate, offer rate, median days-to-interview, ghost rate, weekly momentum — your search measured like a sales funnel. |
+| **Momentum + guided onboarding** | A six-step spotlight tour on first sign-in, an activation checklist computed from real data, and server-side momentum points for real actions (log +10, send +15, first interview +30, first offer +100) with levels from Starter to Legend. Gamification that rewards *doing the work*, not opening the app. |
+| **Bring your own key** | Every user gets a free AI-draft allowance on the server key, then plugs in their own free Gemini key — validated live, stored Fernet-encrypted, only ever shown masked. Key errors come back as structured codes (`key_invalid`, `quota_exhausted`…) with plain-English fixes, so the product's AI bill scales with its users instead of its operator. |
 
 <div align="center">
 <img src="docs/screenshots/05-nudges.png" alt="Nudge inbox with auto-drafted follow-ups" width="820" />
@@ -101,6 +103,11 @@ flowchart LR
   [`data/sample_postings.csv`](data/sample_postings.csv) and
   [`data/sample_drafts.csv`](data/sample_drafts.csv) through the exact same importer the
   evaluators will exercise. No hand-planted fixtures.
+- **Unit economics are a design constraint.** The engine for any request is chosen per user —
+  their own encrypted Gemini key, else the server key while a free allowance lasts, else a
+  structured `402 key_required` that the UI turns into a one-minute "get a free key" flow.
+  Generation blocks politely; extraction and retrieval degrade to regex/lexical and never do
+  ([`app/services/engine.py`](backend/app/services/engine.py)).
 
 ## Try it in 60 seconds (no GCP account needed)
 
@@ -134,7 +141,9 @@ PROJECT_ID=your-project ./infra/deploy.sh
 
 The script enables APIs, creates Firestore, sets up least-privilege service accounts, deploys to
 Cloud Run from source, and wires the hourly Cloud Scheduler job (OIDC-authenticated). Full
-runbook with the Firebase Auth step: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+runbook with the Firebase Auth step: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Running it as a
+public product — a clean `*.web.app` URL via Firebase Hosting, the bring-your-own-key cost model,
+and the free-allowance knobs: [docs/PUBLIC_LAUNCH.md](docs/PUBLIC_LAUNCH.md).
 
 ## For evaluators
 
@@ -145,7 +154,7 @@ datasets through the pipeline.
 ## Testing
 
 ```bash
-make test    # 72 backend tests (pytest) + 5 frontend tests (vitest)
+make test    # 105 backend tests (pytest) + 5 frontend tests (vitest)
 make lint    # ruff + tsc --noEmit
 make tour    # Playwright end-to-end tour of the full UI (needs `make api` running)
 ```
@@ -156,8 +165,11 @@ headers, UTF-8 BOM, CRLF, multiline quoted contents, mixed date formats, messy t
 (`follow-up`, `Thank You`, `fulltime`), duplicate ids within one file, per-row failures,
 idempotent re-imports, and orphan adoption when a posting arrives after its drafts. The nudge
 engine is tested for cadence backoff, dedupe idempotency, budget caps, and the staleness-clock
-semantics. The Playwright tour in [`e2e/`](e2e/) click-tests every page against the running
-stack and regenerates the screenshots above.
+semantics. The BYOK layer is tested for encryption round-trips, secret rotation, engine-selection
+order, allowance accounting (a failed generation never burns a credit), the Gemini error taxonomy's
+HTTP mapping, and momentum award rules (first-time-only transitions can't be farmed). The
+Playwright tour in [`e2e/`](e2e/) click-tests every page — onboarding tour included — against the
+running stack and regenerates the screenshots above.
 
 ## Project structure
 
@@ -171,13 +183,14 @@ backend/
     repos/             Repo protocol · MemoryRepo · FirestoreRepo (batched writes)
     services/
       llm.py           Gemini adapter (routing, fallbacks, batching) + template fallback
+      engine.py        per-user engine selection · BYOK encryption · momentum
       ingest.py        the CSV pipeline
       nudges.py        the cadence engine
       retrieval.py     hybrid exemplar retrieval (embeddings + lexical)
       generation.py    grounded draft generation with provenance
       analytics.py     funnel math
     routers/           applications · drafts · imports · nudges · analytics · tasks
-  tests/               72 tests
+  tests/               105 tests
 frontend/
   src/                 React 19 + TypeScript + Tailwind 4 (validated dataviz palette)
 e2e/                   Playwright tour: click-tests every page, regenerates screenshots

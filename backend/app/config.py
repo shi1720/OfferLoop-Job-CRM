@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     # JSON web config passed straight to the frontend via /api/config.
     firebase_web_config: str = ""
 
+    # --- Bring-your-own-key (public deployments) ---------------------------
+    # Users store their own Gemini API key (encrypted with key_secret when
+    # set); until they do, the server key covers a free allowance of AI
+    # generations per user, then generation asks for a key.
+    free_generations: int = 30
+    key_secret: str = ""  # Fernet key for encrypting stored user API keys
+
     # --- Nudge cadence ----------------------------------------------------
     # Sales-style touch cadence: first follow-up after 5 quiet days, then
     # backoff. Every value is a product decision surfaced in the UI.
