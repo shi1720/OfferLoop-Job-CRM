@@ -16,7 +16,7 @@ routers ──► services ──► adapters
 
 Selected by `OFFERLOOP_APP_MODE`. Consequences:
 
-- **CI needs no secrets.** All 139 backend tests exercise the real pipeline logic against the
+- **CI needs no secrets.** All 140 backend tests exercise the real pipeline logic against the
   memory adapter and the deterministic writer.
 - **Judges can run the product in one command** with no GCP project.
 - **The demo is honest.** Demo mode boots by pushing `data/sample_*.csv` through the same

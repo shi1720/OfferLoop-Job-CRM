@@ -136,9 +136,12 @@ export function OnboardingTour() {
     if (route && location.pathname !== route) navigate(route);
   }, [active, index, location.pathname, navigate]);
 
-  // Replay from anywhere in the app.
+  // Replay from anywhere in the app — desktop only, same as auto-start:
+  // on a phone the targets live inside a closed slide-over menu.
   useEffect(() => {
-    const handler = () => start();
+    const handler = () => {
+      if (window.innerWidth >= 768) start();
+    };
     window.addEventListener(TOUR_EVENT, handler);
     return () => window.removeEventListener(TOUR_EVENT, handler);
   }, [start]);

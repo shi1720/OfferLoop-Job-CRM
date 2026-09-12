@@ -73,6 +73,7 @@ def update_draft(
     draft = repo.get_draft(user.uid, draft_id)
     if draft is None:
         raise HTTPException(status_code=404, detail="Draft not found")
+    newly_sent = payload.status == DraftStatus.SENT and draft.status != DraftStatus.SENT
 
     if payload.subject is not None:
         draft.subject = payload.subject
@@ -87,8 +88,9 @@ def update_draft(
     repo.put_draft(draft)
 
     # Marking a draft "sent" is real outreach — it resets the staleness
-    # clock that drives the follow-up cadence, and earns momentum.
-    if payload.status == DraftStatus.SENT and draft.application_id:
+    # clock that drives the follow-up cadence, and earns momentum. Only on
+    # the transition: re-sending "sent" must never farm points or reset clocks.
+    if newly_sent and draft.application_id:
         app = repo.get_application(user.uid, draft.application_id)
         if app:
             app.touch()

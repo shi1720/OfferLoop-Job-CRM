@@ -389,6 +389,21 @@ class TestPushTokens:
         assert calls == [("u1", 1)]
 
 
+class TestSentIsATransition:
+    def test_resending_sent_never_farms_points_or_resets_clock(self, client):
+        app_id = client.post("/api/applications", json={"role": "Engineer", "company": "Finlo"}).json()["id"]
+        draft_id = client.post(f"/api/applications/{app_id}/drafts", json={"type": "follow_up_email"}).json()["id"]
+
+        client.patch(f"/api/drafts/{draft_id}", json={"status": "sent"})
+        points_after_send = client.get("/api/profile").json()["points"]
+        clock_after_send = client.get(f"/api/applications/{app_id}").json()["last_activity_at"]
+
+        # editing a sent draft while re-stating status: "sent" is not new outreach
+        client.patch(f"/api/drafts/{draft_id}", json={"status": "sent", "contents": "tweaked"})
+        assert client.get("/api/profile").json()["points"] == points_after_send
+        assert client.get(f"/api/applications/{app_id}").json()["last_activity_at"] == clock_after_send
+
+
 class TestFollowUpInsight:
     def _app_with_history(self, repo, uid, reached_interview: bool):
         app = make_application(uid=uid)

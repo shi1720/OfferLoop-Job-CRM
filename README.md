@@ -163,7 +163,7 @@ datasets through the pipeline.
 ## Testing
 
 ```bash
-make test    # 139 backend tests (pytest) + 10 frontend tests (vitest)
+make test    # 140 backend tests (pytest) + 10 frontend tests (vitest)
 make lint    # ruff + tsc --noEmit
 make tour    # Playwright end-to-end tour of the full UI (needs `make api` running)
 ```
@@ -199,7 +199,7 @@ backend/
       generation.py    grounded draft generation with provenance
       analytics.py     funnel math
     routers/           applications · drafts · imports · nudges · analytics · tasks
-  tests/               139 tests
+  tests/               140 tests
 frontend/
   src/                 React 19 + TypeScript + Tailwind 4 (validated dataviz palette)
 e2e/                   Playwright tour: click-tests every page, regenerates screenshots

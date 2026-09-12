@@ -40,7 +40,7 @@ function MomentumCard() {
             onClick={replayTour}
             aria-label="Replay the tour"
             title="Replay the tour"
-            className="cursor-pointer rounded p-0.5 text-ink-3 transition-colors hover:text-accent"
+            className="hidden cursor-pointer rounded p-0.5 text-ink-3 transition-colors hover:text-accent md:block"
           >
             <HelpCircle size={12} />
           </button>
@@ -112,41 +112,42 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       )}
 
       <div className="border-t border-line-soft p-3">
-        <NavLink
-          to="/profile"
-          data-tour="nav-profile"
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              "flex items-center gap-3 rounded-lg px-2 py-2 transition-colors",
-              isActive ? "bg-raised" : "hover:bg-raised/60",
-            )
-          }
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-raised font-display text-xs font-bold text-accent">
-            {user?.photo ? (
-              <img src={user.photo} alt="" className="h-8 w-8 rounded-full" />
-            ) : (
-              initials(user?.name ?? "?")
-            )}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-ink">{user?.name}</span>
-            <span className="flex items-center gap-1 text-[11px] text-ink-3">
-              <UserRound size={10} /> Profile & voice
+        {/* Sign-out lives BESIDE the link, not inside it — a <button> nested
+            in an <a> is invalid HTML and breaks click semantics. */}
+        <div className="flex items-center gap-1">
+          <NavLink
+            to="/profile"
+            data-tour="nav-profile"
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              cn(
+                "flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 transition-colors",
+                isActive ? "bg-raised" : "hover:bg-raised/60",
+              )
+            }
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-raised font-display text-xs font-bold text-accent">
+              {user?.photo ? (
+                <img src={user.photo} alt="" className="h-8 w-8 rounded-full" />
+              ) : (
+                initials(user?.name ?? "?")
+              )}
             </span>
-          </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-ink">{user?.name}</span>
+              <span className="flex items-center gap-1 text-[11px] text-ink-3">
+                <UserRound size={10} /> Profile & voice
+              </span>
+            </span>
+          </NavLink>
           <button
-            onClick={(event) => {
-              event.preventDefault();
-              void signOut();
-            }}
+            onClick={() => void signOut()}
             aria-label="Sign out"
             className="cursor-pointer rounded-md p-1.5 text-ink-3 transition-colors hover:bg-overlay hover:text-ink"
           >
             <LogOut size={14} />
           </button>
-        </NavLink>
+        </div>
       </div>
     </aside>
   );

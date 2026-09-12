@@ -32,7 +32,8 @@ export function NewApplicationModal({
         ...form,
         skills,
         posting_url: initial?.posting_url ?? "",
-        applied_at: new Date(`${form.applied_at}T00:00:00Z`).toISOString(),
+        // a cleared date field would make new Date() invalid — let the server default to now
+        applied_at: form.applied_at ? new Date(`${form.applied_at}T00:00:00Z`).toISOString() : undefined,
       }),
     onSuccess: () => {
       toast("Application logged — +10 momentum, the cadence clock is ticking");
