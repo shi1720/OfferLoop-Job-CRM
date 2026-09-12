@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from datetime import datetime, timedelta
 
 from ..config import Settings
@@ -192,6 +193,7 @@ def scan_all(
     intelligence: Intelligence,
     settings: Settings,
     now: datetime | None = None,
+    notify: Callable[[Repo, Profile, int, str], int] | None = None,
 ) -> ScanReport:
     started = time.monotonic()
     total = ScanReport()
@@ -207,5 +209,12 @@ def scan_all(
         total.scanned += result.scanned
         total.nudges_created += result.nudges_created
         total.drafts_generated += result.drafts_generated
+        if notify and result.nudges_created > 0:
+            profile = repo.get_profile(uid)
+            if profile and profile.push_tokens:
+                try:
+                    notify(repo, profile, result.nudges_created, settings.public_url or "/")
+                except Exception:  # noqa: BLE001 — notifications never fail a scan
+                    log.warning("push notify failed for %s", uid, exc_info=True)
     total.duration_ms = int((time.monotonic() - started) * 1000)
     return total

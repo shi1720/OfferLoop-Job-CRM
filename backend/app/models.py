@@ -50,6 +50,8 @@ class Status(StrEnum):
 class DraftType(StrEnum):
     COVER_LETTER = "cover_letter"
     FOLLOW_UP_EMAIL = "follow_up_email"
+    REFERRAL_REQUEST = "referral_request"
+    LINKEDIN_MESSAGE = "linkedin_message"
 
 
 class DraftStatus(StrEnum):
@@ -75,6 +77,29 @@ class StatusChange(BaseModel):
     note: str = ""
 
 
+class PrepQuestion(BaseModel):
+    question: str
+    why_they_ask: str = ""
+    how_to_answer: str = ""
+
+
+class PrepStory(BaseModel):
+    title: str
+    outline: str = ""  # STAR-shaped prompt built from the user's proof points
+    metric: str = ""  # the number to land
+
+
+class PrepPack(BaseModel):
+    """Interview prep generated per application, grounded on the posting
+    and the candidate's own profile — regenerated on demand, never stale."""
+
+    questions: list[PrepQuestion] = Field(default_factory=list)
+    stories: list[PrepStory] = Field(default_factory=list)
+    questions_to_ask: list[str] = Field(default_factory=list)
+    model: str = ""
+    generated_at: UTCDateTime = Field(default_factory=utcnow)
+
+
 class Application(BaseModel):
     id: str = Field(default_factory=new_id)
     uid: str
@@ -85,14 +110,20 @@ class Application(BaseModel):
     job_type: str = ""  # full-time | contract | internship | ...
     description: str = ""  # raw posting text — the grounding source
     skills: list[str] = Field(default_factory=list)
+    posting_url: str = ""  # original posting link (paste-a-link capture, tracker imports)
     posting_from: UTCDateTime | None = None
     posting_to: UTCDateTime | None = None
     applied_at: UTCDateTime = Field(default_factory=utcnow)
     status: Status = Status.APPLIED
     status_history: list[StatusChange] = Field(default_factory=list)
     last_activity_at: UTCDateTime = Field(default_factory=utcnow)
-    source: str = "manual"  # manual | import
+    source: str = "manual"  # manual | import | capture
     notes: str = ""
+    contact_name: str = ""  # recruiter / referrer — a CRM needs a who
+    contact_email: str = ""
+    interview_at: UTCDateTime | None = None  # next interview, drives calendar links
+    prep_pack: PrepPack | None = None
+    deleted_at: UTCDateTime | None = None  # soft delete → undo is possible
     created_at: UTCDateTime = Field(default_factory=utcnow)
     updated_at: UTCDateTime = Field(default_factory=utcnow)
 
@@ -148,6 +179,8 @@ class Profile(BaseModel):
     free_used: int = 0  # server-key generations consumed from the free allowance
     onboarded: bool = False  # first-login tour completed/skipped
     points: int = 0  # momentum score, awarded server-side
+    weekly_goal: int = 5  # target applications per week (Today view ring)
+    push_tokens: list[str] = Field(default_factory=list)  # FCM web push tokens (≤5 devices)
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +225,10 @@ class ApplicationCreate(BaseModel):
     location: str = ""
     job_type: str = ""
     description: str = ""
+    skills: list[str] = Field(default_factory=list)  # prefilled by capture
+    posting_url: str = ""
+    contact_name: str = ""
+    contact_email: str = ""
     applied_at: UTCDateTime | None = None
     status: Status = Status.APPLIED
     notes: str = ""
@@ -203,9 +240,38 @@ class ApplicationUpdate(BaseModel):
     location: str | None = None
     job_type: str | None = None
     description: str | None = None
+    posting_url: str | None = None
+    contact_name: str | None = None
+    contact_email: str | None = None
     status: Status | None = None
     status_note: str = ""
     notes: str | None = None
+    interview_at: UTCDateTime | None = None
+    clear_interview: bool = False  # None means "not provided", so clearing needs a flag
+
+
+class CaptureRequest(BaseModel):
+    """Paste-a-link (or paste-the-JD) quick capture."""
+
+    url: str = ""
+    text: str = ""
+
+
+class CapturedPosting(BaseModel):
+    """Extracted posting fields, returned for the user to confirm — capture
+    never creates the application behind their back."""
+
+    role: str = ""
+    company: str = ""
+    location: str = ""
+    job_type: str = ""
+    skills: list[str] = Field(default_factory=list)
+    description: str = ""
+    posting_url: str = ""
+
+
+class PushTokenUpdate(BaseModel):
+    token: str
 
 
 class GenerateRequest(BaseModel):
@@ -228,6 +294,7 @@ class ProfileUpdate(BaseModel):
     achievements: str | None = None
     style_rules: str | None = None
     onboarded: bool | None = None
+    weekly_goal: int | None = Field(default=None, ge=0, le=100)
 
 
 class GeminiKeyUpdate(BaseModel):
@@ -251,6 +318,8 @@ class PublicProfile(BaseModel):
     gemini_key_masked: str | None = None  # "\u2022\u2022\u2022\u2022 1a2b" or None
     free_remaining: int = 0
     engine: str = "demo"  # your_key | free_credits | key_required | demo
+    weekly_goal: int = 5
+    push_enabled: bool = False  # at least one registered web-push device
 
 
 class ScanReport(BaseModel):

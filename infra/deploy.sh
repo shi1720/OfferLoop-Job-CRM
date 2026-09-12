@@ -26,6 +26,7 @@ SERVICE="${SERVICE:-offerloop}"
 FIREBASE_WEB_CONFIG="${FIREBASE_WEB_CONFIG:-}"
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"        # optional: AI Studio key instead of Vertex
 FREE_GENERATIONS="${FREE_GENERATIONS:-30}"  # free AI drafts per user before BYOK kicks in
+FCM_VAPID_KEY="${FCM_VAPID_KEY:-}"          # optional: web-push (Firebase console -> Cloud Messaging)
 
 RUN_SA="offerloop-run@${PROJECT_ID}.iam.gserviceaccount.com"
 SCHED_SA="offerloop-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
@@ -97,6 +98,9 @@ else
 fi
 ENV_VARS+="##OFFERLOOP_KEY_SECRET=${KEY_SECRET}"
 ENV_VARS+="##OFFERLOOP_FREE_GENERATIONS=${FREE_GENERATIONS}"
+if [ -n "${FCM_VAPID_KEY}" ]; then
+  ENV_VARS+="##OFFERLOOP_FCM_VAPID_KEY=${FCM_VAPID_KEY}"
+fi
 ENV_VARS+="##OFFERLOOP_SCHEDULER_SERVICE_ACCOUNT=${SCHED_SA}"
 ENV_VARS+="##OFFERLOOP_FIREBASE_WEB_CONFIG=${FIREBASE_WEB_CONFIG}"
 

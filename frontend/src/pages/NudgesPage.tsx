@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BadgeCheck,
   BellRing,
+  CalendarPlus,
   Check,
   ChevronDown,
   Ghost,
@@ -16,6 +17,7 @@ import { Link } from "react-router-dom";
 
 import { api } from "../api";
 import { useAuth } from "../auth";
+import { calendarEventUrl } from "../lib/links";
 import { useToast } from "../components/Toast";
 import { Button, Chip, EmptyState, Spinner } from "../components/ui";
 import { cn, daysSince, timeAgo } from "../lib/format";
@@ -74,7 +76,7 @@ export default function NudgesPage() {
   const backoff = config?.cadence.follow_up_backoff_days ?? [];
 
   return (
-    <div className="animate-rise mx-auto max-w-3xl px-6 py-6">
+    <div className="animate-rise mx-auto max-w-3xl px-4 py-6 sm:px-6">
       <header className="mb-5 flex items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-xl font-bold tracking-tight">Nudges</h1>
@@ -196,8 +198,8 @@ function NudgeCard({ nudge, onAct }: { nudge: Nudge; onAct: (action: "done" | "d
             </div>
           )}
 
-          <div className="mt-3 flex items-center gap-2">
-            <Link to={`/?app=${nudge.application_id}`}>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Link to={`/pipeline?app=${nudge.application_id}`}>
               <Button variant="outline" className="!px-3 !py-1.5">
                 Open application
               </Button>
@@ -208,6 +210,20 @@ function NudgeCard({ nudge, onAct }: { nudge: Nudge; onAct: (action: "done" | "d
             <Button variant="ghost" className="!px-3 !py-1.5" onClick={() => onAct("dismiss")}>
               <X size={13} /> Dismiss
             </Button>
+            <a
+              href={calendarEventUrl({
+                title: nudge.headline,
+                start: new Date(),
+                durationMinutes: 30,
+                details: nudge.detail,
+              })}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-ink-3 transition-colors hover:text-accent"
+              title="Block 30 minutes for this in Google Calendar"
+            >
+              <CalendarPlus size={12} /> Block time
+            </a>
           </div>
         </div>
       </div>

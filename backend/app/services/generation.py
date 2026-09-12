@@ -54,6 +54,7 @@ def generate_draft(
             style_rules=profile.style_rules,
             exemplars=[d.contents for d, _ in exemplars],
             instructions=instructions,
+            contact_name=app.contact_name,
         )
     )
 

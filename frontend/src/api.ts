@@ -5,11 +5,13 @@ import type {
   Analytics,
   AppConfig,
   Application,
+  CapturedPosting,
   Draft,
   DraftStatus,
   DraftType,
   ImportReport,
   Nudge,
+  PrepPack,
   Profile,
   ScanReport,
   Status,
@@ -81,6 +83,10 @@ export const api = {
         body: JSON.stringify({ status, status_note: note }),
       }),
     remove: (id: string) => request<void>(`/api/applications/${id}`, { method: "DELETE" }),
+    restore: (id: string) => request<Application>(`/api/applications/${id}/restore`, { method: "POST" }),
+    capture: (payload: { url?: string; text?: string }) =>
+      request<CapturedPosting>("/api/applications/capture", { method: "POST", body: JSON.stringify(payload) }),
+    prep: (id: string) => request<PrepPack>(`/api/applications/${id}/prep`, { method: "POST" }),
   },
 
   drafts: {
@@ -129,5 +135,28 @@ export const api = {
     setGeminiKey: (key: string) =>
       request<Profile>("/api/profile/gemini-key", { method: "PUT", body: JSON.stringify({ key }) }),
     removeGeminiKey: () => request<Profile>("/api/profile/gemini-key", { method: "DELETE" }),
+    registerPushToken: (token: string) =>
+      request<Profile>("/api/profile/push-token", { method: "PUT", body: JSON.stringify({ token }) }),
+    disablePush: () => request<Profile>("/api/profile/push-token", { method: "DELETE" }),
+  },
+
+  account: {
+    /** Authenticated CSV download — fetches with the bearer token, then
+     * hands the bytes to the browser as a file. */
+    download: async (name: "applications" | "drafts") => {
+      const token = await tokenProvider();
+      const response = await fetch(`/api/export/${name}.csv`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new ApiError(response.status, "Export failed — try again");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `offerloop_${name}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    },
+    deleteEverything: () => request<void>("/api/account", { method: "DELETE" }),
   },
 };

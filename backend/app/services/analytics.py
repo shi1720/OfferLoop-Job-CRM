@@ -35,6 +35,11 @@ class AnalyticsSummary(BaseModel):
     nudges_pending: int = 0
     nudges_actioned: int = 0
     weekly: list[WeekActivity] = Field(default_factory=list)
+    # The product's own proof: do worked applications convert better?
+    followed_up: int = 0  # applications with at least one SENT outreach draft
+    followup_interview_rate: float | None = None  # % reaching interview, worked bucket
+    no_followup_interview_rate: float | None = None  # % reaching interview, silent bucket
+    followup_lift: float | None = None  # multiplier; only when both buckets are big enough
 
 
 def _week_start(when: datetime) -> str:
@@ -80,8 +85,33 @@ def summarize(repo: Repo, settings: Settings, uid: str, now: datetime | None = N
     if days_to_interview:
         summary.median_days_to_interview = round(statistics.median(days_to_interview), 1)
 
+    # Drafts belonging to soft-deleted applications shouldn't inflate totals;
+    # orphans (imported drafts with no posting yet) still count.
+    live_ids = {a.id for a in apps}
+    drafts = [d for d in drafts if not d.application_id or d.application_id in live_ids]
+
     summary.drafts_total = len(drafts)
     summary.drafts_sent = sum(1 for d in drafts if d.status.value == "sent")
+
+    # --- the follow-up lift: applications you *worked* vs applications you
+    # left silent. Sent outreach of any kind counts as working it.
+    worked_ids = {d.application_id for d in drafts if d.status.value == "sent" and d.application_id}
+    worked = [a for a in apps if a.id in worked_ids]
+    silent = [a for a in apps if a.id not in worked_ids]
+    summary.followed_up = len(worked)
+    if worked:
+        worked_rate = 100 * sum(1 for a in worked if _reached(a, Status.INTERVIEW)) / len(worked)
+        summary.followup_interview_rate = round(worked_rate, 1)
+    if silent:
+        silent_rate = 100 * sum(1 for a in silent if _reached(a, Status.INTERVIEW)) / len(silent)
+        summary.no_followup_interview_rate = round(silent_rate, 1)
+    if (
+        len(worked) >= 3
+        and len(silent) >= 3
+        and summary.no_followup_interview_rate
+        and summary.followup_interview_rate is not None
+    ):
+        summary.followup_lift = round(summary.followup_interview_rate / summary.no_followup_interview_rate, 1)
     summary.nudges_pending = sum(1 for n in nudges if n.status == NudgeStatus.PENDING)
     summary.nudges_actioned = sum(1 for n in nudges if n.status == NudgeStatus.DONE)
 

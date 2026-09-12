@@ -5,7 +5,7 @@
  * the "?" button in the sidebar (a `offerloop:tour` window event). */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellRing, FileUp, Kanban, KeyRound, Plus, Radar } from "lucide-react";
+import { BellRing, FileUp, Kanban, KeyRound, Link2, Radar, Sunrise } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -21,6 +21,7 @@ export function replayTour() {
 
 interface TourStep {
   target: string; // matches a [data-tour="…"] attribute
+  route?: string; // navigate here before spotlighting
   icon: React.ReactNode;
   title: string;
   body: string;
@@ -28,19 +29,29 @@ interface TourStep {
 
 const STEPS: TourStep[] = [
   {
+    target: "nav-today",
+    route: "/",
+    icon: <Sunrise size={15} />,
+    title: "Start every day here",
+    body: "Today shows exactly what moves your search forward right now: follow-ups due with drafts attached, interviews coming up, and your weekly goal.",
+  },
+  {
     target: "nav-pipeline",
+    route: "/pipeline",
     icon: <Kanban size={15} />,
     title: "Your pipeline, on one board",
     body: "Every application is a card. Drag it from Applied to Interview to Offer — the full journey is recorded for you, like deals in a sales CRM.",
   },
   {
-    target: "log-app",
-    icon: <Plus size={15} />,
-    title: "Log every application",
-    body: "Each application you log earns +10 momentum and starts a follow-up cadence, so nothing you applied to goes quiet unnoticed.",
+    target: "quick-add",
+    route: "/pipeline",
+    icon: <Link2 size={15} />,
+    title: "Add a job in seconds",
+    body: "Paste any posting link — or the whole job description — and Gemini fills in the card for you. Every application you log earns +10 momentum.",
   },
   {
     target: "scan",
+    route: "/pipeline",
     icon: <Radar size={15} />,
     title: "The nudge engine",
     body: "OfferLoop scans your pipeline every hour and works out exactly who to follow up with today. This button runs a scan on demand.",
@@ -55,7 +66,7 @@ const STEPS: TourStep[] = [
     target: "nav-import",
     icon: <FileUp size={15} />,
     title: "Bring your whole search",
-    body: "Already tracking applications in a spreadsheet? Import CSVs here — postings and past drafts link up automatically, and imports earn +25 momentum.",
+    body: "Import the CSVs you already have — spreadsheets, or exports from Teal and Huntr — and postings, drafts and stages link up automatically. +25 momentum.",
   },
   {
     target: "nav-profile",
@@ -107,14 +118,23 @@ export function OnboardingTour() {
     if (profile && !profile.onboarded) finish.mutate();
   }, [profile, finish]);
 
-  // Auto-start exactly once for fresh accounts, after the board has painted.
+  // Auto-start exactly once for fresh accounts, after the page has painted.
+  // Desktop only: the sidebar targets live behind a menu on small screens,
+  // where the activation checklist carries the introduction instead.
   useEffect(() => {
-    if (profile && !profile.onboarded && !autoStarted.current) {
+    if (profile && !profile.onboarded && !autoStarted.current && window.innerWidth >= 768) {
       autoStarted.current = true;
       const timer = window.setTimeout(start, 700);
       return () => window.clearTimeout(timer);
     }
   }, [profile, start]);
+
+  // Steps can live on different routes — follow them.
+  useEffect(() => {
+    if (!active) return;
+    const route = STEPS[index].route;
+    if (route && location.pathname !== route) navigate(route);
+  }, [active, index, location.pathname, navigate]);
 
   // Replay from anywhere in the app.
   useEffect(() => {

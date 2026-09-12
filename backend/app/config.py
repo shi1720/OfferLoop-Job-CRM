@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     # --- Firebase Auth ----------------------------------------------------
     # JSON web config passed straight to the frontend via /api/config.
     firebase_web_config: str = ""
+    # Web-push VAPID public key (Firebase console → Cloud Messaging → Web
+    # push certificates). Empty = push UI stays hidden.
+    fcm_vapid_key: str = ""
 
     # --- Bring-your-own-key (public deployments) ---------------------------
     # Users store their own Gemini API key (encrypted with key_secret when

@@ -50,3 +50,29 @@ export async function firebaseSignOut(): Promise<void> {
   if (!auth) return;
   await signOut(auth);
 }
+
+// ---------------------------------------------------------------------------
+// Web push (FCM) — live mode only, and only when the server exposes a VAPID key
+// ---------------------------------------------------------------------------
+
+export function pushSupported(): boolean {
+  return typeof window !== "undefined" && "Notification" in window && "serviceWorker" in navigator;
+}
+
+/** Ask permission, register the messaging service worker (config travels in
+ * the registration URL), and return this browser's FCM token. */
+export async function enableWebPush(config: Record<string, string>, vapidKey: string): Promise<string> {
+  const { getApp } = await import("firebase/app");
+  const { getMessaging, getToken } = await import("firebase/messaging");
+
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") {
+    throw new Error("Notifications are blocked for this site — allow them in your browser settings and retry.");
+  }
+  const encoded = encodeURIComponent(btoa(JSON.stringify(config)));
+  const registration = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?config=${encoded}`);
+  const messaging = getMessaging(getApp());
+  const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
+  if (!token) throw new Error("Couldn't get a push token — try again in a moment.");
+  return token;
+}

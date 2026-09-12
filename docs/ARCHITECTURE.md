@@ -16,7 +16,7 @@ routers ──► services ──► adapters
 
 Selected by `OFFERLOOP_APP_MODE`. Consequences:
 
-- **CI needs no secrets.** All 105 backend tests exercise the real pipeline logic against the
+- **CI needs no secrets.** All 139 backend tests exercise the real pipeline logic against the
   memory adapter and the deterministic writer.
 - **Judges can run the product in one command** with no GCP project.
 - **The demo is honest.** Demo mode boots by pushing `data/sample_*.csv` through the same
@@ -90,6 +90,26 @@ The same module owns **momentum**: points are awarded exclusively server-side fo
 (log 10, send 15, nudge done 20, import 25, first interview 30, first offer 100), with
 transition awards keyed to first-time status changes so bouncing a card back and forth can't
 farm points.
+
+## The launch feature set
+
+- **Paste-a-link capture** (`services/capture.py`): a server-side fetch of a user-supplied URL
+  is an SSRF invitation, so scheme/host/resolved-IPs are validated before the request *and*
+  after redirects (metadata service and private ranges refused), responses are size-capped and
+  content-type checked, and login-walled boards degrade to a "paste the JD text" hint. The
+  extraction itself reuses the import pipeline's engine, so it works keyless via regex.
+- **Interview prep packs**: one structured-JSON Gemini call per application (template fallback in
+  demo), stored on the application, regenerated on demand, and gated by the same BYOK allowance
+  as drafts. Prompts forbid inventing experience — thin proof points get coaching, not fiction.
+- **Soft delete + undo**: `delete` stamps `deleted_at`; every listing filters it, scans skip it,
+  analytics exclude it, and `restore` brings the application back with drafts and nudges intact.
+- **Tracker migration**: Teal/Huntr exports are *application* lists, not postings — detected by
+  header shape, stage vocabularies mapped onto the four phases, idempotent by posting URL.
+- **Web push** (`services/push.py`): FCM tokens live on the profile (≤5 devices), only the
+  *scheduled* scan notifies, dead tokens are pruned on send, and a notification failure can
+  never fail a scan.
+- **Zero-OAuth integrations**: Gmail compose and Google Calendar template links are pure URL
+  builders (`frontend/src/lib/links.ts`) — tested functions, no scopes to review, work on phones.
 
 ## Frontend
 

@@ -59,7 +59,7 @@ def classify_gemini_error(exc: Exception) -> str:
 
 @dataclass
 class DraftContext:
-    kind: str  # cover_letter | follow_up_email
+    kind: str  # cover_letter | follow_up_email | referral_request | linkedin_message
     role: str
     company: str
     location: str = ""
@@ -78,6 +78,7 @@ class DraftContext:
     style_rules: str = ""  # user-set hard constraints, e.g. "never use em dashes"
     exemplars: list[str] = field(default_factory=list)  # past drafts, same type, most relevant first
     instructions: str = ""
+    contact_name: str = ""  # recruiter/referrer, when the user recorded one
 
 
 @dataclass
@@ -93,6 +94,10 @@ class Intelligence(Protocol):
     def extract_postings(self, descriptions: list[str]) -> list[dict]: ...
 
     def write_draft(self, ctx: DraftContext) -> WrittenDraft: ...
+
+    def prep_pack(self, ctx: DraftContext) -> tuple[dict, str]:
+        """Interview prep for one application → (parsed pack, model name)."""
+        ...
 
     def embed(self, texts: list[str]) -> list[list[float]] | None: ...
 
@@ -173,6 +178,70 @@ _WRITE_SCHEMA = {
     "required": ["subject", "body"],
 }
 
+_PREP_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "questions": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "question": {"type": "STRING"},
+                    "why_they_ask": {"type": "STRING", "description": "One sentence on the interviewer's intent"},
+                    "how_to_answer": {"type": "STRING", "description": "Angle using the candidate real background"},
+                },
+                "required": ["question", "why_they_ask", "how_to_answer"],
+            },
+        },
+        "stories": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "title": {"type": "STRING", "description": "Short memorable label, e.g. 'The latency rescue'"},
+                    "outline": {"type": "STRING", "description": "STAR outline from stated proof points only"},
+                    "metric": {"type": "STRING", "description": "Number to land from the proof points, or empty"},
+                },
+                "required": ["title", "outline", "metric"],
+            },
+        },
+        "questions_to_ask": {"type": "ARRAY", "items": {"type": "STRING"}},
+    },
+    "required": ["questions", "stories", "questions_to_ask"],
+}
+
+_PREP_SYSTEM = (
+    "You are OfferLoop's interview coach. Build prep material grounded ONLY on the posting "
+    "and the candidate's stated profile — never invent experience, employers, or numbers the "
+    "candidate did not provide. Sharp, specific, zero filler. Return ONLY JSON."
+)
+
+
+def _prep_prompt(ctx: DraftContext) -> str:
+    return "\n".join(
+        [
+            "TASK: Interview prep pack for this application.",
+            "- 6 to 8 likely interview questions for THIS role (mix technical/behavioral as the",
+            "  posting suggests), each with why they ask it and how THIS candidate should answer.",
+            "- 2 to 3 STAR story outlines built strictly from the candidate's proof points",
+            "  (if proof points are thin, coach what to prepare rather than inventing).",
+            "- 4 sharp questions the candidate should ask the interviewer, specific to this posting.",
+            "",
+            "POSTING:",
+            f"- Role: {ctx.role}",
+            f"- Company: {ctx.company or 'not stated'}",
+            f"- Description: {ctx.description[:2000] or 'not provided'}",
+            f"- Key skills: {', '.join(ctx.skills) if ctx.skills else 'not stated'}",
+            "",
+            "CANDIDATE:",
+            f"- Headline: {ctx.profile_headline or 'not provided'}",
+            f"- Experience: {ctx.profile_years:g} years" if ctx.profile_years else "- Experience: not provided",
+            f"- Skills: {', '.join(ctx.profile_skills) if ctx.profile_skills else 'not provided'}",
+            f"- Proof points: {ctx.profile_achievements or 'not provided'}",
+        ]
+    )
+
+
 _WRITER_SYSTEM = (
     "You are OfferLoop's writing engine: a sharp career coach who writes application "
     "materials that get replies. Rules: be specific, never generic; no clichés "
@@ -183,14 +252,25 @@ _WRITER_SYSTEM = (
 )
 
 
+_TASKS = {
+    "cover_letter": "cover letter (170-230 words, no subject needed).",
+    "follow_up_email": "follow-up email (60-120 words) with a subject line.",
+    "referral_request": (
+        "referral request (70-120 words) with a subject line, addressed to someone who works "
+        "at the company. Warm, not needy; make saying yes effortless (offer to send a resume "
+        "and a one-line blurb they can forward); name the exact role."
+    ),
+    "linkedin_message": (
+        "LinkedIn direct message to a recruiter or hiring manager. Under 400 characters, "
+        "no subject (return an empty subject), no greeting fluff: one specific hook tied to "
+        "the role, one credential, one soft ask."
+    ),
+}
+
+
 def _writer_prompt(ctx: DraftContext) -> str:
     lines = [
-        "TASK: Write a "
-        + (
-            "cover letter (170-230 words, no subject needed)."
-            if ctx.kind == "cover_letter"
-            else "follow-up email (60-120 words) with a subject line."
-        ),
+        "TASK: Write a " + _TASKS.get(ctx.kind, _TASKS["follow_up_email"]),
         "",
         "POSTING:",
         f"- Role: {ctx.role}",
@@ -208,6 +288,8 @@ def _writer_prompt(ctx: DraftContext) -> str:
         f"- Proof points: {ctx.profile_achievements or 'not provided'}",
         f"- Preferred tone: {ctx.tone}",
     ]
+    if ctx.contact_name and ctx.kind in ("referral_request", "linkedin_message", "follow_up_email"):
+        lines.append(f"- Address it to: {ctx.contact_name}")
     if ctx.kind == "follow_up_email":
         lines += [
             "",
@@ -218,7 +300,7 @@ def _writer_prompt(ctx: DraftContext) -> str:
             "- Goal: polite persistence. Reference the elapsed time, restate one concrete "
             "value point matched to the posting, and end with a clear, low-friction ask.",
         ]
-    else:
+    elif ctx.kind == "cover_letter":
         lines += [
             "",
             "STRUCTURE: hook tied to this specific role -> one or two proof points matched to "
@@ -337,6 +419,9 @@ class GeminiIntelligence:
         parsed, model = self._generate_json(chain, _WRITER_SYSTEM, _writer_prompt(ctx), _WRITE_SCHEMA, 0.7)
         return WrittenDraft(subject=parsed.get("subject", ""), body=parsed.get("body", ""), model=model)
 
+    def prep_pack(self, ctx: DraftContext) -> tuple[dict, str]:
+        return self._generate_json(self._flash_chain, _PREP_SYSTEM, _prep_prompt(ctx), _PREP_SCHEMA, 0.5)
+
     def embed(self, texts: list[str]) -> list[list[float]] | None:
         from google.genai import types
 
@@ -395,6 +480,31 @@ class TemplateIntelligence:
             )
             return WrittenDraft(subject="", body=body, model="template")
 
+        if ctx.kind == "referral_request":
+            greeting = f"Hi {ctx.contact_name}," if ctx.contact_name else "Hi,"
+            body = (
+                f"{greeting}\n\n"
+                f"I'm applying for the {ctx.role} role at {company} and I'd really value a referral "
+                f"if you're comfortable giving one. My background in {mine} maps closely onto what "
+                f"the posting asks for{', especially ' + skills if ctx.skills and skills != mine else ''}.\n\n"
+                f"To make it painless: I can send over my resume and a two-line blurb you can forward "
+                f"as-is. And if a referral isn't possible, any pointer about the team would already "
+                f"help a lot.\n\nThank you either way!\n{name}"
+            )
+            subject = f"Referral request — {ctx.role}" + (f" at {ctx.company}" if ctx.company else "")
+            return WrittenDraft(subject=subject, body=body, model="template")
+
+        if ctx.kind == "linkedin_message":
+            greeting = f"Hi {ctx.contact_name.split(' ')[0]} — " if ctx.contact_name else "Hi — "
+            body = (
+                f"{greeting}I just applied for the {ctx.role} role"
+                f"{' at ' + ctx.company if ctx.company else ''} and wanted to reach out directly. "
+                f"I've spent {f'{ctx.profile_years:g} years' if ctx.profile_years else 'my career'} "
+                f"working with {mine}, which is exactly what the posting calls for. "
+                f"Would you be open to a quick chat this week? — {name}"
+            )
+            return WrittenDraft(subject="", body=body, model="template")
+
         opener = {
             1: f"I applied for the {ctx.role} position {ctx.days_since_applied} days ago and wanted to check in.",
             2: f"Following up once more on my {ctx.role} application from {ctx.days_since_applied} days ago.",
@@ -408,6 +518,76 @@ class TemplateIntelligence:
         )
         subject = f"Following up: {ctx.role} application" + (f" — {ctx.company}" if ctx.company else "")
         return WrittenDraft(subject=subject, body=body, model="template")
+
+    def prep_pack(self, ctx: DraftContext) -> tuple[dict, str]:
+        skills = ctx.skills[:3] or ctx.profile_skills[:3] or ["your core stack"]
+        company = ctx.company or "the company"
+        proof = ctx.profile_achievements.strip()
+        questions = [
+            {
+                "question": f"Walk me through your experience with {skills[0]}.",
+                "why_they_ask": "It's the posting's top requirement — they want depth, not name-dropping.",
+                "how_to_answer": "Pick one real project: the problem, your decisions, the measurable result.",
+            },
+            {
+                "question": f"Why do you want to work at {company}?",
+                "why_they_ask": "They're screening for genuine interest versus a mass application.",
+                "how_to_answer": "Tie one concrete detail from the posting to what you want to do next.",
+            },
+            {
+                "question": "Tell me about a time something you shipped went wrong.",
+                "why_they_ask": "Ownership and blamelessness under pressure.",
+                "how_to_answer": "Failure, your fix, and the guardrail you added so it can't recur.",
+            },
+            {
+                "question": f"How would you approach your first 30 days as a {ctx.role}?",
+                "why_they_ask": "They want a self-starter with a plan, not a passenger.",
+                "how_to_answer": "Learn the system, ship something small early, earn trust with quick wins.",
+            },
+            {
+                "question": "What's a technical decision you've reversed, and why?",
+                "why_they_ask": "Intellectual honesty and judgment beat stubbornness.",
+                "how_to_answer": "Show the new information that changed your mind and the outcome.",
+            },
+            {
+                "question": "Where do you want to be in two years?",
+                "why_they_ask": "Retention risk and ambition check.",
+                "how_to_answer": f"Growth that this {ctx.role} role genuinely feeds into — be specific.",
+            },
+        ]
+        stories = (
+            [
+                {
+                    "title": "Your headline win",
+                    "outline": f"Situation and task behind: {proof[:220]}. Action: the two decisions that "
+                    "were yours. Result: land the number explicitly.",
+                    "metric": proof[:80],
+                }
+            ]
+            if proof
+            else [
+                {
+                    "title": "Prepare one headline win",
+                    "outline": "Add a proof point with a number to your Profile — a latency cut, a launch, "
+                    "a cost saving — then rebuild this pack. Interviewers remember numbers.",
+                    "metric": "",
+                }
+            ]
+        ) + [
+            {
+                "title": "The conflict you resolved",
+                "outline": "A disagreement about approach; how you got to evidence instead of opinion; "
+                "what shipped because of it.",
+                "metric": "",
+            }
+        ]
+        questions_to_ask = [
+            f"What does the first shipped win look like for this {ctx.role} hire?",
+            "What separates your best person in this role from a merely good one?",
+            f"What's the hardest problem the team is facing with {skills[0]} right now?",
+            "How does the team decide what NOT to build?",
+        ]
+        return {"questions": questions, "stories": stories, "questions_to_ask": questions_to_ask}, "template"
 
     def embed(self, texts: list[str]) -> list[list[float]] | None:
         return None  # retrieval falls back to lexical scoring

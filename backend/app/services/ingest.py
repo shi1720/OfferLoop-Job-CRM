@@ -78,6 +78,11 @@ _DRAFT_TYPE_ALIASES = {
     "email": DraftType.FOLLOW_UP_EMAIL,
     "thankyou": DraftType.FOLLOW_UP_EMAIL,
     "thankyouemail": DraftType.FOLLOW_UP_EMAIL,
+    "referral": DraftType.REFERRAL_REQUEST,
+    "referralrequest": DraftType.REFERRAL_REQUEST,
+    "linkedin": DraftType.LINKEDIN_MESSAGE,
+    "linkedinmessage": DraftType.LINKEDIN_MESSAGE,
+    "dm": DraftType.LINKEDIN_MESSAGE,
 }
 
 _STATUS_ALIASES = {
@@ -172,6 +177,137 @@ def _parse_date(value: str) -> datetime | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
     except ValueError:
         return None
+
+
+# ---------------------------------------------------------------------------
+# Tracker exports (Teal, Huntr, and lookalikes)
+#
+# Their exports are *application* lists, not posting lists: company + title +
+# a stage column. Detected by shape, mapped onto the pipeline so switching
+# tools is one upload.
+# ---------------------------------------------------------------------------
+
+_TRACKER_ROLE_KEYS = ("jobposition", "position", "jobtitle", "title", "role")
+_TRACKER_COMPANY_KEYS = ("company", "companyname", "employer")
+_TRACKER_URL_KEYS = ("url", "joburl", "jobposturl", "link", "posting")
+_TRACKER_STAGE_KEYS = ("status", "list", "stage", "phase")
+_TRACKER_DATE_KEYS = ("dateapplied", "applieddate", "appliedat", "applicationdate", "dateadded", "datesaved", "created")
+_TRACKER_NOTES_KEYS = ("notes", "note", "comments")
+_TRACKER_LOCATION_KEYS = ("location", "city", "jobLocation".lower())
+
+# Stage vocabularies across Teal ("Bookmarked", "Interviewing"…) and Huntr
+# board lists ("Wishlist", "Offer"…), squashed like every other label.
+_TRACKER_STATUS_MAP = {
+    **dict.fromkeys(
+        ("wishlist", "bookmarked", "saved", "applying", "toapply", "applied", "apply", "inprogress", "followup"),
+        Status.APPLIED,
+    ),
+    **dict.fromkeys(
+        ("interview", "interviewing", "phonescreen", "screen", "onsite", "technical", "assessment"),
+        Status.INTERVIEW,
+    ),
+    **dict.fromkeys(("offer", "offered", "negotiating", "accepted", "hired"), Status.OFFER),
+    **dict.fromkeys(("rejected", "reject", "declined", "withdrawn", "closed", "archived", "ghosted"), Status.REJECT),
+}
+
+
+def _first(row: dict[str, str], keys: tuple[str, ...]) -> str:
+    for key in keys:
+        if row.get(key):
+            return row[key]
+    return ""
+
+
+def sniff_tracker(data: bytes) -> bool:
+    """True when the header row looks like a Teal/Huntr-style export
+    (company + a title column) rather than the postings schema."""
+    try:
+        header = data.decode("utf-8-sig", errors="replace").splitlines()[0]
+    except IndexError:
+        return False
+    headers = {_normalize_header(h) for h in header.split(_detect_delimiter(header))}
+    has_company = any(k in headers for k in _TRACKER_COMPANY_KEYS)
+    has_role = any(k in headers for k in _TRACKER_ROLE_KEYS)
+    is_postings = "description" in headers and "id" in headers
+    return has_company and has_role and not is_postings
+
+
+def ingest_tracker(repo: Repo, uid: str, data: bytes, filename: str = "") -> FileReport:
+    """Import a tracker export as applications, idempotently by URL (or a
+    company+role fingerprint when the export has no URL column)."""
+    report = FileReport(filename=filename)
+    rows, fatal = _read_rows(data, "notes")
+    if fatal:
+        report.rejected.append(RowError(row=0, reason=fatal))
+        return report
+    report.total_rows = len(rows)
+
+    by_external: dict[str, Application] = {
+        a.external_id: a for a in repo.list_applications(uid) if a.external_id
+    }
+    staged: dict[str, Application] = {}
+    now = utcnow()
+    for line, row in enumerate(rows, start=2):
+        role = _first(row, _TRACKER_ROLE_KEYS).strip()
+        company = _first(row, _TRACKER_COMPANY_KEYS).strip()
+        if not role:
+            report.rejected.append(RowError(row=line, reason="missing job title"))
+            continue
+
+        url = _first(row, _TRACKER_URL_KEYS).strip()
+        external_id = url or f"tracker:{_squash(company)}:{_squash(role)}"
+        stage_label = _first(row, _TRACKER_STAGE_KEYS)
+        status = _TRACKER_STATUS_MAP.get(_squash(stage_label), Status.APPLIED)
+        applied_at = _parse_date(_first(row, _TRACKER_DATE_KEYS)) or now
+        notes = _first(row, _TRACKER_NOTES_KEYS).strip()
+        if row.get("salary"):
+            notes = (notes + f"\nSalary: {row['salary']}").strip()
+
+        existing = by_external.get(external_id)
+        if existing:
+            existing.role = role or existing.role
+            existing.company = company or existing.company
+            existing.location = _first(row, _TRACKER_LOCATION_KEYS) or existing.location
+            existing.posting_url = url or existing.posting_url
+            existing.notes = notes or existing.notes
+            if status != existing.status:
+                existing.status_history.append(
+                    StatusChange(from_status=existing.status, to_status=status, at=now, note="tracker re-import")
+                )
+                existing.status = status
+            existing.updated_at = now
+            staged[existing.id] = existing
+            report.updated += 1
+            continue
+
+        note = f"imported from tracker ({stage_label or 'applied'})"
+        history = [StatusChange(to_status=Status.APPLIED, at=applied_at, note=note)]
+        if status != Status.APPLIED:
+            history.append(
+                StatusChange(from_status=Status.APPLIED, to_status=status, at=now, note="stage from tracker export")
+            )
+        app = Application(
+            uid=uid,
+            external_id=external_id,
+            role=role,
+            company=company,
+            location=_first(row, _TRACKER_LOCATION_KEYS),
+            job_type=_normalize_job_type(_first(row, ("type", "employmenttype", "jobtype"))),
+            description=_first(row, ("description", "jobdescription")),
+            posting_url=url,
+            applied_at=applied_at,
+            last_activity_at=applied_at,
+            status=status,
+            status_history=history,
+            source="import",
+            notes=notes,
+        )
+        by_external[external_id] = app
+        staged[app.id] = app
+        report.accepted += 1
+
+    repo.bulk_put_applications(staged.values())
+    return report
 
 
 # ---------------------------------------------------------------------------
@@ -407,7 +543,12 @@ def run_import(
     started = time.monotonic()
     report = ImportReport(uid=uid)
     if postings:
-        report.postings = ingest_postings(repo, intelligence, uid, postings[0], postings[1])
+        # A Teal/Huntr export dropped in the postings slot is welcomed, not
+        # rejected: detect its shape and import it as applications.
+        if sniff_tracker(postings[0]):
+            report.postings = ingest_tracker(repo, uid, postings[0], postings[1])
+        else:
+            report.postings = ingest_postings(repo, intelligence, uid, postings[0], postings[1])
     if drafts:
         draft_report, linked, orphaned, embedded = ingest_drafts(repo, intelligence, uid, drafts[0], drafts[1])
         report.drafts = draft_report

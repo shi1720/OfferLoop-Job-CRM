@@ -29,9 +29,15 @@ class Repo(Protocol):
 
     def get_application_by_external_id(self, uid: str, external_id: str) -> Application | None: ...
 
-    def list_applications(self, uid: str) -> list[Application]: ...
+    def list_applications(self, uid: str, include_deleted: bool = False) -> list[Application]: ...
 
-    def delete_application(self, uid: str, app_id: str) -> bool: ...
+    def delete_application(self, uid: str, app_id: str) -> bool:
+        """Soft delete: the application disappears from every listing but can
+        be restored (the undo toast). Drafts and nudges are left in place so
+        a restore brings everything back intact."""
+        ...
+
+    def restore_application(self, uid: str, app_id: str) -> Application | None: ...
 
     # -- drafts ------------------------------------------------------------
     def put_draft(self, draft: Draft) -> None: ...
@@ -76,6 +82,11 @@ class Repo(Protocol):
 
     # -- misc ---------------------------------------------------------------
     def is_empty(self, uid: str) -> bool: ...
+
+    def delete_user_data(self, uid: str) -> None:
+        """Erase everything the user owns — applications, drafts, nudges,
+        reports, profile. Powers the delete-my-account flow."""
+        ...
 
 
 def stale_cutoff(now: datetime, days: int) -> datetime:

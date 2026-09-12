@@ -20,7 +20,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import Settings, get_settings
-from .routers import analytics, applications, drafts, imports, nudges, tasks
+from .routers import account, analytics, applications, drafts, imports, nudges, tasks
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("offerloop")
@@ -90,7 +90,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    for router in (applications, drafts, imports, nudges, analytics, tasks):
+    for router in (applications, drafts, imports, nudges, analytics, account, tasks):
         app.include_router(router.router)
 
     if settings.gcp_project:

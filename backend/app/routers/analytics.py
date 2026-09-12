@@ -7,9 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from ..auth import User, get_current_user
 from ..config import Settings, get_settings
 from ..deps import get_intelligence, get_repo
-from ..models import GeminiKeyUpdate, Profile, ProfileUpdate, PublicProfile
+from ..models import GeminiKeyUpdate, Profile, ProfileUpdate, PublicProfile, PushTokenUpdate
 from ..repos.base import Repo
-from ..services import engine
+from ..services import engine, push
 from ..services.analytics import summarize
 from ..services.llm import Intelligence
 
@@ -75,6 +75,33 @@ def set_gemini_key(
     profile = _load_profile(repo, user)
     profile.gemini_api_key_enc = engine.encrypt_key(settings, raw)
     repo.put_profile(profile)
+    return engine.public_profile(settings, server, profile)
+
+
+@router.put("/profile/push-token", response_model=PublicProfile)
+def register_push_token(
+    payload: PushTokenUpdate,
+    user: User = Depends(get_current_user),
+    repo: Repo = Depends(get_repo),
+    settings: Settings = Depends(get_settings),
+    server: Intelligence = Depends(get_intelligence),
+):
+    """Register this browser's FCM token for due-nudge notifications."""
+    if not payload.token.strip():
+        raise HTTPException(status_code=422, detail="token is required")
+    profile = push.register_token(repo, _load_profile(repo, user), payload.token)
+    return engine.public_profile(settings, server, profile)
+
+
+@router.delete("/profile/push-token", response_model=PublicProfile)
+def remove_push_tokens(
+    user: User = Depends(get_current_user),
+    repo: Repo = Depends(get_repo),
+    settings: Settings = Depends(get_settings),
+    server: Intelligence = Depends(get_intelligence),
+):
+    """Turn notifications off — clears every registered device."""
+    profile = push.clear_tokens(repo, _load_profile(repo, user))
     return engine.public_profile(settings, server, profile)
 
 

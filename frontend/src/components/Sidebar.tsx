@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, BellRing, FileUp, HelpCircle, Kanban, LogOut, UserRound, Zap } from "lucide-react";
+import { BarChart3, BellRing, FileUp, HelpCircle, Kanban, LogOut, Sunrise, UserRound, Zap } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { api } from "../api";
@@ -9,7 +9,8 @@ import { Wordmark } from "./Logo";
 import { replayTour } from "./OnboardingTour";
 
 const NAV = [
-  { to: "/", label: "Pipeline", icon: Kanban, tour: "nav-pipeline" },
+  { to: "/", label: "Today", icon: Sunrise, tour: "nav-today" },
+  { to: "/pipeline", label: "Pipeline", icon: Kanban, tour: "nav-pipeline" },
   { to: "/nudges", label: "Nudges", icon: BellRing, tour: "nav-nudges" },
   { to: "/import", label: "Import", icon: FileUp, tour: "nav-import" },
   { to: "/analytics", label: "Analytics", icon: BarChart3, tour: "nav-analytics" },
@@ -53,7 +54,7 @@ function MomentumCard() {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { user, config, signOut } = useAuth();
   const { data: nudges } = useQuery({
     queryKey: ["nudges", "pending"],
@@ -76,6 +77,7 @@ export function Sidebar() {
             to={to}
             end={to === "/"}
             data-tour={tour}
+            onClick={onNavigate}
             className={({ isActive }) =>
               cn(
                 "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
@@ -113,6 +115,7 @@ export function Sidebar() {
         <NavLink
           to="/profile"
           data-tour="nav-profile"
+          onClick={onNavigate}
           className={({ isActive }) =>
             cn(
               "flex items-center gap-3 rounded-lg px-2 py-2 transition-colors",

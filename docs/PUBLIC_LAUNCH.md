@@ -87,7 +87,26 @@ Then point auth at the new domain:
 3. (Optional) A fully custom domain: Hosting → **Add custom domain**,
    follow the DNS instructions, then repeat step 2 with that domain.
 
-## 3. Verify
+## 3. Web push notifications (optional, free)
+
+The hourly nudge scan can ping users' browsers the moment follow-ups come
+due — the product keeping its promise *outside* the tab.
+
+1. Firebase console → Project settings → **Cloud Messaging** → Web push
+   certificates → **Generate key pair**. Copy the public key.
+2. Redeploy with it (or `gcloud run services update offerloop
+   --update-env-vars OFFERLOOP_FCM_VAPID_KEY=<key>`):
+
+   ```bash
+   FCM_VAPID_KEY=<public key> PROJECT_ID=<your-project> ./infra/deploy.sh …
+   ```
+
+3. Users flip it on under Profile → Notifications (or the Today page).
+   Tokens are stored per profile (max 5 devices), pruned automatically when
+   a device unregisters, and only the *scheduled* scan notifies — a user
+   clicking "scan" is already looking at the result.
+
+## 4. Verify
 
 ```bash
 BASE=https://<site>.web.app
@@ -100,7 +119,7 @@ Then in a browser: sign in, run the onboarding tour, add a key on the
 Profile page (watch it validate live), generate a draft, check the
 momentum chip ticks up.
 
-## 4. Operating notes
+## 5. Operating notes
 
 - **Scale-to-zero**: min-instances is 0; a quiet app costs ~nothing.
   The hourly Cloud Scheduler scan is the only guaranteed wake-up.

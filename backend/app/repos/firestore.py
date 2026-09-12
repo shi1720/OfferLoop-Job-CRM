@@ -87,29 +87,32 @@ class FirestoreRepo:
             return Application.model_validate(snap.to_dict())
         return None
 
-    def list_applications(self, uid: str) -> list[Application]:
+    def list_applications(self, uid: str, include_deleted: bool = False) -> list[Application]:
         snaps = self._user(uid).collection("applications").stream()
         apps = [Application.model_validate(s.to_dict()) for s in snaps]
+        if not include_deleted:
+            # Filtered here rather than in the query: Firestore can't match
+            # documents where a field is absent, and legacy docs predate it.
+            apps = [a for a in apps if a.deleted_at is None]
         return sorted(apps, key=lambda a: a.applied_at, reverse=True)
 
     def delete_application(self, uid: str, app_id: str) -> bool:
-        doc = self._user(uid).collection("applications").document(app_id)
-        existed = doc.get().exists
-        if existed:
-            doc.delete()
-            drafts = (
-                self._user(uid)
-                .collection("drafts")
-                .where(filter=self._filter("application_id", "==", app_id))
-                .stream()
-            )
-            refs = [snap.reference for snap in drafts]
-            for start in range(0, len(refs), _BATCH_LIMIT):
-                batch = self._db.batch()
-                for ref in refs[start : start + _BATCH_LIMIT]:
-                    batch.delete(ref)
-                batch.commit()
-        return existed
+        from ..models import utcnow
+
+        app = self.get_application(uid, app_id)
+        if app is None or app.deleted_at is not None:
+            return False
+        app.deleted_at = utcnow()
+        self.put_application(app)
+        return True
+
+    def restore_application(self, uid: str, app_id: str) -> Application | None:
+        app = self.get_application(uid, app_id)
+        if app is None:
+            return None
+        app.deleted_at = None
+        self.put_application(app)
+        return app
 
     # -- drafts ------------------------------------------------------------
     def put_draft(self, draft: Draft) -> None:
@@ -203,6 +206,16 @@ class FirestoreRepo:
     def is_empty(self, uid: str) -> bool:
         snaps = self._user(uid).collection("applications").limit(1).stream()
         return next(iter(snaps), None) is None
+
+    def delete_user_data(self, uid: str) -> None:
+        for collection in ("applications", "drafts", "nudges", "imports", "meta"):
+            refs = [snap.reference for snap in self._user(uid).collection(collection).stream()]
+            for start in range(0, len(refs), _BATCH_LIMIT):
+                batch = self._db.batch()
+                for ref in refs[start : start + _BATCH_LIMIT]:
+                    batch.delete(ref)
+                batch.commit()
+        self._user(uid).delete()
 
     @staticmethod
     def _filter(field: str, op: str, value: Any):

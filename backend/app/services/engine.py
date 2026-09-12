@@ -152,6 +152,7 @@ def engine_for(settings: Settings, server: Intelligence, profile: Profile) -> tu
 POINTS = {
     "application_logged": 10,
     "draft_sent": 15,
+    "prep_generated": 15,
     "nudge_done": 20,
     "import_completed": 25,
     "reached_interview": 30,
@@ -177,6 +178,42 @@ def award(repo, profile: Profile, event: str) -> Profile:
     return profile
 
 
+# ---------------------------------------------------------------------------
+# Shared HTTP mapping for generation endpoints (drafts, prep packs)
+# ---------------------------------------------------------------------------
+
+GEMINI_HTTP = {"key_invalid": 400, "quota_exhausted": 429, "timeout": 504, "unavailable": 502}
+GEMINI_MESSAGES = {
+    "key_invalid": "Your Gemini API key was rejected. Update it under Profile → AI engine.",
+    "quota_exhausted": (
+        "Your Gemini key's quota is exhausted — free-tier limits reset daily. "
+        "Try again later, or use a key from a project with billing."
+    ),
+    "timeout": "Gemini took too long to respond. Try again in a moment.",
+    "unavailable": "The AI engine is unavailable right now. Try again shortly.",
+}
+GEMINI_FALLBACK_MESSAGE = "The AI engine returned an unexpected error. Try again shortly."
+
+
+def gemini_error_detail(exc) -> tuple[int, dict]:
+    """(status_code, detail) for a GeminiError — .get() so a future unmapped
+    code degrades to a 502, never a bare 500."""
+    return (
+        GEMINI_HTTP.get(exc.code, 502),
+        {"code": f"gemini_{exc.code}", "message": GEMINI_MESSAGES.get(exc.code, GEMINI_FALLBACK_MESSAGE)},
+    )
+
+
+def key_required_detail(settings: Settings) -> dict:
+    return {
+        "code": "key_required",
+        "message": (
+            f"You've used all {settings.free_generations} free AI drafts. Add your own "
+            "free Gemini API key under Profile → AI engine to keep generating."
+        ),
+    }
+
+
 def public_profile(settings: Settings, server: Intelligence, profile: Profile) -> PublicProfile:
     raw = decrypt_key(settings, profile.gemini_api_key_enc)
     return PublicProfile(
@@ -194,4 +231,6 @@ def public_profile(settings: Settings, server: Intelligence, profile: Profile) -
         gemini_key_masked=mask_key(raw) if raw else None,
         free_remaining=max(0, settings.free_generations - profile.free_used),
         engine=engine_source(settings, server, profile),
+        weekly_goal=profile.weekly_goal,
+        push_enabled=bool(profile.push_tokens),
     )

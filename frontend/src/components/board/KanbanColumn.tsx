@@ -22,7 +22,8 @@ export function KanbanColumn({
     <section
       ref={setNodeRef}
       className={cn(
-        "flex min-w-0 flex-1 flex-col rounded-2xl border border-transparent bg-panel/60 transition-colors",
+        // phones: each stage is a swipeable ~4/5-screen column; desktop: equal quarters
+        "flex min-w-[78vw] flex-1 snap-center flex-col rounded-2xl border border-transparent bg-panel/60 transition-colors sm:min-w-0",
         isOver && "border-accent/40 bg-panel",
       )}
     >

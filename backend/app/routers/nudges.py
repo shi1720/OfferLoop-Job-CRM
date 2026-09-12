@@ -19,7 +19,10 @@ def list_nudges(
     user: User = Depends(get_current_user),
     repo: Repo = Depends(get_repo),
 ):
-    return repo.list_nudges(user.uid, status)
+    # Nudges pointing at soft-deleted applications stay stored (a restore
+    # brings them right back) but never show in the inbox.
+    live_ids = {a.id for a in repo.list_applications(user.uid)}
+    return [n for n in repo.list_nudges(user.uid, status) if n.application_id in live_ids]
 
 
 @router.post("/{nudge_id}/done")

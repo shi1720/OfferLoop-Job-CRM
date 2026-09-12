@@ -65,7 +65,7 @@ export function ActivationChecklist({
   };
 
   return (
-    <div className="animate-rise mx-6 mb-4 rounded-xl border border-accent/20 bg-accent/5 px-4 py-3">
+    <div className="animate-rise mx-4 mb-4 rounded-xl sm:mx-6 border border-accent/20 bg-accent/5 px-4 py-3">
       <div className="flex items-center justify-between">
         <p className="text-[13px] font-semibold text-ink">
           First moves <span className="ml-1 font-normal text-ink-3">{doneCount}/{items.length}</span>

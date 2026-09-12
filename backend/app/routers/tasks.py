@@ -39,6 +39,7 @@ def config(settings: Settings = Depends(get_settings)):
     return {
         "mode": settings.app_mode,
         "firebase": firebase,
+        "push_vapid_key": settings.fcm_vapid_key if settings.app_mode == "live" else "",
         "cadence": {
             "follow_up_backoff_days": settings.follow_up_backoff,
             "interview_thank_you_days": settings.interview_thank_you_days,
@@ -58,9 +59,14 @@ def nudge_scan(
     """Invoked by Cloud Scheduler (OIDC-authenticated) on a fixed cadence.
 
     Scans every user's pipeline, creates due nudges idempotently, and
-    auto-drafts follow-up emails up to a per-run generation budget.
+    auto-drafts follow-up emails up to a per-run generation budget. Only
+    this scheduled path sends web-push — a user running a manual scan is
+    already looking at the result.
     """
-    return scan_all(repo, intelligence, settings)
+    from ..services import push
+
+    notify = push.notify_nudges if settings.app_mode == "live" else None
+    return scan_all(repo, intelligence, settings, notify=notify)
 
 
 @router.post("/scan")

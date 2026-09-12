@@ -15,18 +15,6 @@ from ..services.llm import GeminiError, Intelligence
 
 router = APIRouter(prefix="/api", tags=["drafts"])
 
-_GEMINI_HTTP = {"key_invalid": 400, "quota_exhausted": 429, "timeout": 504, "unavailable": 502}
-_GEMINI_FALLBACK_MESSAGE = "The AI engine returned an unexpected error. Try again shortly."
-_GEMINI_MESSAGES = {
-    "key_invalid": "Your Gemini API key was rejected. Update it under Profile → AI engine.",
-    "quota_exhausted": (
-        "Your Gemini key's quota is exhausted — free-tier limits reset daily. "
-        "Try again later, or use a key from a project with billing."
-    ),
-    "timeout": "Gemini took too long to respond. Try again in a moment.",
-    "unavailable": "The AI engine is unavailable right now. Try again shortly.",
-}
-
 
 @router.get("/drafts")
 def list_drafts(
@@ -35,8 +23,14 @@ def list_drafts(
     repo: Repo = Depends(get_repo),
 ):
     drafts = repo.list_drafts(user.uid, application_id)
-    # embeddings are an internal detail — keep payloads light
-    return [d.model_dump(exclude={"embedding"}) for d in drafts]
+    # drafts of soft-deleted applications stay stored for restore, but the
+    # UI never sees them; embeddings are an internal detail — keep payloads light
+    live_ids = {a.id for a in repo.list_applications(user.uid)}
+    return [
+        d.model_dump(exclude={"embedding"})
+        for d in drafts
+        if not d.application_id or d.application_id in live_ids
+    ]
 
 
 @router.post("/applications/{app_id}/drafts", status_code=201)
@@ -55,28 +49,13 @@ def generate(
     profile = repo.get_profile(user.uid) or Profile(uid=user.uid, name=user.name)
     intelligence, source = engine.engine_for(settings, server, profile)
     if source == engine.KEY_REQUIRED:
-        raise HTTPException(
-            status_code=402,
-            detail={
-                "code": "key_required",
-                "message": (
-                    f"You've used all {settings.free_generations} free AI drafts. Add your own "
-                    "free Gemini API key under Profile → AI engine to keep generating."
-                ),
-            },
-        )
+        raise HTTPException(status_code=402, detail=engine.key_required_detail(settings))
 
     try:
         draft = generate_draft(repo, intelligence, app, payload.type, instructions=payload.instructions)
     except GeminiError as exc:
-        # .get() so a future unmapped code degrades to a 502, never a 500
-        raise HTTPException(
-            status_code=_GEMINI_HTTP.get(exc.code, 502),
-            detail={
-                "code": f"gemini_{exc.code}",
-                "message": _GEMINI_MESSAGES.get(exc.code, _GEMINI_FALLBACK_MESSAGE),
-            },
-        ) from exc
+        status_code, detail = engine.gemini_error_detail(exc)
+        raise HTTPException(status_code=status_code, detail=detail) from exc
 
     if source == engine.FREE_CREDITS:
         profile.free_used += 1

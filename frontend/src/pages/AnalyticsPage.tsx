@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { BellRing, Send } from "lucide-react";
+import { BellRing, Send, TrendingUp } from "lucide-react";
 
 import { api } from "../api";
 import { useAuth } from "../auth";
@@ -23,7 +23,7 @@ export default function AnalyticsPage() {
   const backoff = config?.cadence.follow_up_backoff_days ?? [];
 
   return (
-    <div className="animate-rise mx-auto max-w-5xl px-6 py-6">
+    <div className="animate-rise mx-auto max-w-5xl px-4 py-6 sm:px-6">
       <header className="mb-6">
         <h1 className="font-display text-xl font-bold tracking-tight">Analytics</h1>
         <p className="text-[13px] text-ink-2">Your search, measured like a sales funnel.</p>
@@ -53,6 +53,40 @@ export default function AnalyticsPage() {
           tone={data.ghost_rate > 30 ? "bad" : undefined}
         />
       </div>
+
+      {/* The product's own proof: worked applications convert better.
+          A headline stat, not a chart — values wear ink tokens, the accent
+          mark carries the emphasis. */}
+      <section className="ring-card mt-4 rounded-2xl border border-accent/15 bg-card p-5">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
+            <TrendingUp size={16} />
+          </span>
+          {data.followup_lift ? (
+            <>
+              <div>
+                <p className="font-display text-lg font-bold text-ink">
+                  Follow-ups are working: <span className="text-accent">{data.followup_lift}×</span> the interview
+                  rate
+                </p>
+                <p className="text-[13px] text-ink-2">
+                  Applications where you sent outreach reached interviews {data.followup_interview_rate}% of the
+                  time, versus {data.no_followup_interview_rate}% for the ones left silent.
+                </p>
+              </div>
+            </>
+          ) : (
+            <div>
+              <p className="font-display text-sm font-bold text-ink">The follow-up effect</p>
+              <p className="text-[13px] text-ink-2">
+                {data.followed_up > 0
+                  ? `You've worked ${data.followed_up} application${data.followed_up === 1 ? "" : "s"} with sent outreach — once both groups are big enough, the interview-rate comparison shows up here.`
+                  : "Send your first follow-up and OfferLoop starts measuring what it changes: interview rate with outreach versus without."}
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <section className="ring-card rounded-2xl bg-card p-5">

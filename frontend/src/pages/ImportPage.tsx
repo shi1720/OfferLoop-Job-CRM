@@ -44,12 +44,13 @@ export default function ImportPage() {
   const canImport = Boolean(postings || drafts) && !runImport.isPending;
 
   return (
-    <div className="animate-rise mx-auto max-w-3xl px-6 py-6">
+    <div className="animate-rise mx-auto max-w-3xl px-4 py-6 sm:px-6">
       <header className="mb-5">
         <h1 className="font-display text-xl font-bold tracking-tight">Bulk import</h1>
         <p className="text-[13px] text-ink-2">
-          Drop the evaluation datasets — postings and their historical drafts — and OfferLoop links, indexes,
-          and learns from them.
+          Drop postings and historical drafts and OfferLoop links, indexes, and learns from them.
+          Switching from Teal or Huntr? Drop their CSV export straight into the postings slot — statuses
+          map onto your pipeline automatically.
         </p>
       </header>
 
@@ -68,7 +69,7 @@ export default function ImportPage() {
         />
       </div>
 
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <Button
           variant="primary"
           disabled={!canImport}

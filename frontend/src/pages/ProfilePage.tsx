@@ -3,6 +3,7 @@ import { Save, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { api } from "../api";
+import { DataCard, NotificationsCard } from "../components/AccountCards";
 import { EngineCard } from "../components/EngineCard";
 import { useToast } from "../components/Toast";
 import { Button, Field, Spinner, inputClass } from "../components/ui";
@@ -51,7 +52,7 @@ export default function ProfilePage() {
     setForm((current) => ({ ...current, [key]: value }));
 
   return (
-    <div className="animate-rise mx-auto max-w-2xl px-6 py-6">
+    <div className="animate-rise mx-auto max-w-2xl px-4 py-6 sm:px-6">
       <header className="mb-5">
         <h1 className="font-display text-xl font-bold tracking-tight">Profile & voice</h1>
         <p className="text-[13px] text-ink-2">
@@ -131,6 +132,8 @@ export default function ProfilePage() {
       </form>
 
       <EngineCard />
+      <NotificationsCard />
+      <DataCard />
     </div>
   );
 }

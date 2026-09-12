@@ -18,15 +18,17 @@ import { ApplicationCard } from "../components/board/ApplicationCard";
 import { ApplicationDrawer } from "../components/board/ApplicationDrawer";
 import { NewApplicationModal } from "../components/board/NewApplicationModal";
 import { KanbanColumn } from "../components/board/KanbanColumn";
+import { QuickAdd } from "../components/board/QuickAdd";
 import { useToast } from "../components/Toast";
 import { Button, Spinner } from "../components/ui";
-import { STATUSES, STATUS_LABEL, type Application, type Status } from "../types";
+import { STATUSES, STATUS_LABEL, type Application, type CapturedPosting, type Status } from "../types";
 
 export default function BoardPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [creating, setCreating] = useState(false);
+  const [captured, setCaptured] = useState<CapturedPosting | null>(null);
   const [dragged, setDragged] = useState<Application | null>(null);
   const selectedId = searchParams.get("app");
 
@@ -102,7 +104,7 @@ export default function BoardPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between px-6 pt-5 pb-4">
+      <header className="flex flex-col gap-3 px-4 pt-4 pb-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-5 sm:pb-4">
         <div>
           <h1 className="font-display text-xl font-bold tracking-tight">Pipeline</h1>
           <p className="text-[13px] text-ink-2">
@@ -120,6 +122,8 @@ export default function BoardPage() {
         </div>
       </header>
 
+      <QuickAdd onCaptured={setCaptured} />
+
       <ActivationChecklist
         apps={apps}
         drafts={drafts}
@@ -134,7 +138,7 @@ export default function BoardPage() {
         </div>
       ) : (
         <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-          <div className="animate-rise flex flex-1 gap-3 overflow-x-auto px-6 pb-6">
+          <div className="animate-rise flex flex-1 snap-x gap-3 overflow-x-auto px-4 pb-4 sm:px-6 sm:pb-6">
             {STATUSES.map((status) => (
               <KanbanColumn
                 key={status}
@@ -151,7 +155,15 @@ export default function BoardPage() {
         </DndContext>
       )}
 
-      {creating && <NewApplicationModal onClose={() => setCreating(false)} />}
+      {(creating || captured) && (
+        <NewApplicationModal
+          initial={captured}
+          onClose={() => {
+            setCreating(false);
+            setCaptured(null);
+          }}
+        />
+      )}
       {selectedId && <ApplicationDrawer applicationId={selectedId} onClose={closeDrawer} />}
     </div>
   );

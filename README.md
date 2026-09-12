@@ -39,17 +39,26 @@ engine.**
 
 | | |
 |---|---|
-| **Pipeline board** | Drag applications through Applied → Interview → Offer / Reject. Every transition is recorded with a timestamped, annotated history. |
-| **AI outreach that sounds like you** | Gemini **3.1 Pro** writes cover letters; **3.7 Flash** writes follow-ups — grounded on the posting, your profile, *and your own past drafts*, retrieved by hybrid semantic + lexical search. Every draft shows its provenance ("grounded on 3 past drafts"). |
+| **Today view** | The landing page is a to-do list, not a dashboard: follow-ups due with drafts attached, interviews coming up with calendar links, applications going quiet, and a weekly goal you set. The daily ritual that keeps a search alive. |
+| **Paste-a-link capture** | Paste any posting URL — or the whole job description — and Gemini extracts role, company, location and skills into a prefilled card you confirm. Seconds from "saw a job" to "in the pipeline". |
+| **Pipeline board** | Drag applications through Applied → Interview → Offer / Reject. Every transition is recorded with a timestamped, annotated history. Delete is soft — an Undo toast restores everything, drafts included. |
+| **AI outreach that sounds like you** | Four draft types — cover letters (Gemini **3.1 Pro**), follow-up emails, referral requests, and LinkedIn DMs (**3.7 Flash**) — grounded on the posting, your profile, *and your own past drafts*, retrieved by hybrid semantic + lexical search. Every draft shows its provenance and opens **prefilled in Gmail**, addressed to the recruiter contact on the card. |
+| **Interview prep packs** | One click per application: likely questions for that exact posting with answer angles, STAR story outlines built strictly from your own proof points, and sharp questions to ask back. |
 | **Scheduled nudges** | **Cloud Scheduler** scans every pipeline hourly. Quiet applications trigger a 3-touch follow-up cadence (5 → 7 → 10 days) with the follow-up email *already drafted and attached*. Interviews trigger thank-you nudges; offers and rejections get their own rules. Idempotent by construction — a rerun never double-nudges. |
 | **Bulk CSV ingestion** | Drop postings (`id, from, to, type, description`) and drafts (`id, jobId, type, contents, status`). Gemini Flash structures free-text descriptions in batched calls, drafts link to postings by `jobId`, orphans are kept and flagged, bad rows are rejected individually with reasons, and re-imports update instead of duplicating. |
 | **Funnel analytics** | Interview rate, offer rate, median days-to-interview, ghost rate, weekly momentum — your search measured like a sales funnel. |
-| **Momentum + guided onboarding** | A six-step spotlight tour on first sign-in, an activation checklist computed from real data, and server-side momentum points for real actions (log +10, send +15, first interview +30, first offer +100) with levels from Starter to Legend. Gamification that rewards *doing the work*, not opening the app. |
+| **Momentum + guided onboarding** | A seven-step spotlight tour on first sign-in, an activation checklist computed from real data, and server-side momentum points for real actions (log +10, send +15, first interview +30, first offer +100) with levels from Starter to Legend. Gamification that rewards *doing the work*, not opening the app. |
+| **Web push nudges** | The hourly Cloud Scheduler scan can ping your browser via Firebase Cloud Messaging the moment follow-ups come due — the cadence works even when the tab is closed. |
+| **Your data, no lock-in** | One-click CSV export of everything, delete-my-account that actually deletes, and one-upload migration from **Teal or Huntr** — their exports are detected by shape and mapped onto your pipeline, statuses included. |
 | **Bring your own key** | Every user gets a free AI-draft allowance on the server key, then plugs in their own free Gemini key — validated live, stored Fernet-encrypted, only ever shown masked. Key errors come back as structured codes (`key_invalid`, `quota_exhausted`…) with plain-English fixes, so the product's AI bill scales with its users instead of its operator. |
 
 <div align="center">
+<img src="docs/screenshots/10-today.png" alt="Today view: due follow-ups, interviews, weekly goal" width="820" />
 <img src="docs/screenshots/05-nudges.png" alt="Nudge inbox with auto-drafted follow-ups" width="820" />
 </div>
+
+Fully responsive — the board becomes swipeable stage columns on a phone, with the whole app behind
+a slide-over menu.
 
 ## Architecture
 
@@ -154,7 +163,7 @@ datasets through the pipeline.
 ## Testing
 
 ```bash
-make test    # 105 backend tests (pytest) + 5 frontend tests (vitest)
+make test    # 139 backend tests (pytest) + 10 frontend tests (vitest)
 make lint    # ruff + tsc --noEmit
 make tour    # Playwright end-to-end tour of the full UI (needs `make api` running)
 ```
@@ -190,7 +199,7 @@ backend/
       generation.py    grounded draft generation with provenance
       analytics.py     funnel math
     routers/           applications · drafts · imports · nudges · analytics · tasks
-  tests/               105 tests
+  tests/               139 tests
 frontend/
   src/                 React 19 + TypeScript + Tailwind 4 (validated dataviz palette)
 e2e/                   Playwright tour: click-tests every page, regenerates screenshots

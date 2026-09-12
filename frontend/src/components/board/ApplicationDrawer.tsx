@@ -1,15 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Anchor,
+  BrainCircuit,
+  CalendarPlus,
   Check,
   ChevronDown,
   Copy,
+  ExternalLink,
   FileText,
   KeyRound,
+  MessageSquareText,
   Mail,
+  RefreshCw,
   Send,
   Sparkles,
   Trash2,
+  UserRound,
+  UserRoundPlus,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -17,7 +24,16 @@ import { Link } from "react-router-dom";
 
 import { ApiError, api } from "../../api";
 import { cn, daysSince, longDate, timeAgo } from "../../lib/format";
-import { STATUSES, STATUS_LABEL, type Draft, type DraftType, type Status } from "../../types";
+import { calendarEventUrl, gmailComposeUrl } from "../../lib/links";
+import {
+  DRAFT_TYPE_LABEL,
+  STATUSES,
+  STATUS_LABEL,
+  type Application,
+  type Draft,
+  type DraftType,
+  type Status,
+} from "../../types";
 import { useToast } from "../Toast";
 import { Button, Chip, Spinner, STATUS_DOT, inputClass } from "../ui";
 
@@ -84,12 +100,37 @@ export function ApplicationDrawer({ applicationId, onClose }: { applicationId: s
     onSuccess: () => invalidate(),
   });
 
+  const prep = useMutation({
+    mutationFn: () => api.applications.prep(applicationId),
+    onSuccess: () => {
+      setEngineError(null);
+      toast("Prep pack ready — grounded on this posting and your profile");
+      invalidate();
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.code && (error.code === "key_required" || error.code.startsWith("gemini_"))) {
+        setEngineError({ code: error.code, message: error.message });
+      } else {
+        toast(error.message, "err");
+      }
+    },
+  });
+
   const remove = useMutation({
     mutationFn: () => api.applications.remove(applicationId),
     onSuccess: () => {
-      toast("Application deleted", "info");
       invalidate();
       onClose();
+      // Soft delete server-side — the Undo restores everything, drafts included.
+      toast("Application deleted", "info", {
+        label: "Undo",
+        onClick: () => {
+          void api.applications.restore(applicationId).then(() => {
+            invalidate();
+            toast("Restored — drafts and history intact");
+          });
+        },
+      });
     },
   });
 
@@ -114,6 +155,16 @@ export function ApplicationDrawer({ applicationId, onClose }: { applicationId: s
           <p className="mt-1 text-sm text-ink-2">
             {app.company || <span className="italic">Confidential</span>}
             {app.location && <span className="text-ink-3"> · {app.location}</span>}
+            {app.posting_url && (
+              <a
+                href={app.posting_url}
+                target="_blank"
+                rel="noreferrer"
+                className="ml-2 inline-flex items-center gap-0.5 text-xs text-accent hover:underline"
+              >
+                View posting <ExternalLink size={10} />
+              </a>
+            )}
           </p>
         </div>
         <button
@@ -161,6 +212,8 @@ export function ApplicationDrawer({ applicationId, onClose }: { applicationId: s
           {app.source === "import" && <Chip className="text-accent">imported from CSV #{app.external_id}</Chip>}
         </div>
       )}
+
+      <ContactAndInterview app={app} onChanged={invalidate} />
       {app.description && (
         <details className="group mt-3">
           <summary className="flex cursor-pointer items-center gap-1 text-xs font-medium text-ink-3 select-none hover:text-ink-2">
@@ -199,23 +252,25 @@ export function ApplicationDrawer({ applicationId, onClose }: { applicationId: s
           </div>
         )}
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <GenerateButton
-            icon={<FileText size={14} />}
-            label="Cover letter"
-            model="Gemini 3.1 Pro"
-            busy={generate.isPending && generate.variables === "cover_letter"}
-            onClick={() => generate.mutate("cover_letter")}
-            disabled={generate.isPending}
-          />
-          <GenerateButton
-            icon={<Mail size={14} />}
-            label="Follow-up email"
-            model="Gemini 3.7 Flash"
-            busy={generate.isPending && generate.variables === "follow_up_email"}
-            onClick={() => generate.mutate("follow_up_email")}
-            disabled={generate.isPending}
-          />
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {(
+            [
+              { type: "cover_letter", icon: <FileText size={14} />, model: "Gemini 3.1 Pro", action: "Write cover letter" },
+              { type: "follow_up_email", icon: <Mail size={14} />, model: "Gemini 3.7 Flash", action: "Write follow-up email" },
+              { type: "referral_request", icon: <UserRoundPlus size={14} />, model: "Gemini 3.7 Flash", action: "Request a referral" },
+              { type: "linkedin_message", icon: <MessageSquareText size={14} />, model: "Gemini 3.7 Flash", action: "Write LinkedIn DM" },
+            ] as { type: DraftType; icon: React.ReactNode; model: string; action: string }[]
+          ).map(({ type, icon, model, action }) => (
+            <GenerateButton
+              key={type}
+              icon={icon}
+              label={action}
+              model={model}
+              busy={generate.isPending && generate.variables === type}
+              onClick={() => generate.mutate(type)}
+              disabled={generate.isPending}
+            />
+          ))}
         </div>
         <input
           className={`${inputClass} mt-2`}
@@ -233,9 +288,33 @@ export function ApplicationDrawer({ applicationId, onClose }: { applicationId: s
 
         <div className="mt-3 space-y-2">
           {(drafts ?? []).map((draft) => (
-            <DraftItem key={draft.id} draft={draft} onChanged={invalidate} />
+            <DraftItem key={draft.id} draft={draft} app={app} onChanged={invalidate} />
           ))}
         </div>
+      </section>
+
+      {/* Interview prep */}
+      <section className="mt-6">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-display text-sm font-semibold tracking-wide">Interview prep</h3>
+          <Button
+            variant="outline"
+            className="!px-3 !py-1.5"
+            onClick={() => prep.mutate()}
+            disabled={prep.isPending}
+          >
+            {prep.isPending ? <Spinner /> : app.prep_pack ? <RefreshCw size={13} /> : <BrainCircuit size={13} />}
+            {prep.isPending ? "Preparing…" : app.prep_pack ? "Regenerate" : "Build prep pack"}
+          </Button>
+        </div>
+        {app.prep_pack ? (
+          <PrepPackView pack={app.prep_pack} />
+        ) : (
+          <p className="mt-2 text-[13px] text-ink-2">
+            Likely questions for this exact posting, STAR stories built from your own proof points, and sharp
+            questions to ask back{app.status === "interview" ? " — you're in the loop, build it now." : "."}
+          </p>
+        )}
       </section>
 
       {/* Timeline */}
@@ -300,7 +379,7 @@ function DrawerShell({ children, onClose }: { children: React.ReactNode; onClose
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-page/60 backdrop-blur-[2px]" onClick={onClose} />
-      <aside className="ring-card animate-rise absolute top-0 right-0 h-full w-full max-w-[540px] overflow-y-auto bg-panel p-6">
+      <aside className="ring-card animate-rise absolute top-0 right-0 h-full w-full max-w-[540px] overflow-y-auto bg-panel p-4 sm:p-6">
         {children}
       </aside>
     </div>
@@ -341,7 +420,7 @@ function GenerateButton({
     >
       <span className="flex items-center gap-2 text-sm font-medium text-ink">
         {busy ? <Spinner /> : <Sparkles size={14} className="text-accent" />}
-        {busy ? "Writing…" : `Write ${label.toLowerCase()}`}
+        {busy ? "Writing…" : label}
       </span>
       <span className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-3">
         {icon} {model}
@@ -350,7 +429,7 @@ function GenerateButton({
   );
 }
 
-function DraftItem({ draft, onChanged }: { draft: Draft; onChanged: () => void }) {
+function DraftItem({ draft, app, onChanged }: { draft: Draft; app: Application; onChanged: () => void }) {
   const toast = useToast();
   const [open, setOpen] = useState(draft.status === "draft" && draft.source === "generated");
   const [text, setText] = useState(draft.contents);
@@ -369,7 +448,12 @@ function DraftItem({ draft, onChanged }: { draft: Draft; onChanged: () => void }
     toast("Copied to clipboard", "info");
   };
 
-  const isEmail = draft.type === "follow_up_email";
+  const typeIcon = {
+    cover_letter: <FileText size={13} />,
+    follow_up_email: <Mail size={13} />,
+    referral_request: <UserRoundPlus size={13} />,
+    linkedin_message: <MessageSquareText size={13} />,
+  }[draft.type];
 
   return (
     <article className="rounded-xl border border-line-soft bg-card">
@@ -378,11 +462,11 @@ function DraftItem({ draft, onChanged }: { draft: Draft; onChanged: () => void }
         className="flex w-full cursor-pointer items-center gap-2.5 p-3 text-left"
       >
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-raised text-ink-2">
-          {isEmail ? <Mail size={13} /> : <FileText size={13} />}
+          {typeIcon}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-ink">
-            {isEmail ? draft.subject || "Follow-up email" : "Cover letter"}
+            {draft.subject || DRAFT_TYPE_LABEL[draft.type]}
           </span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-ink-3">
             <span>{timeAgo(draft.created_at)}</span>
@@ -415,7 +499,7 @@ function DraftItem({ draft, onChanged }: { draft: Draft; onChanged: () => void }
             value={text}
             onChange={(event) => setText(event.target.value)}
           />
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             {dirty && (
               <Button variant="primary" className="!px-3 !py-1.5" onClick={() => update.mutate({ contents: text })}>
                 <Check size={13} /> Save
@@ -424,6 +508,20 @@ function DraftItem({ draft, onChanged }: { draft: Draft; onChanged: () => void }
             <Button variant="outline" className="!px-3 !py-1.5" onClick={() => void copy()}>
               <Copy size={13} /> Copy
             </Button>
+            {draft.type !== "linkedin_message" && (
+              <a
+                href={gmailComposeUrl({
+                  to: app.contact_email || undefined,
+                  subject: draft.subject || `Regarding my ${app.role} application`,
+                  body: text,
+                })}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink transition-all hover:border-ink-3 hover:bg-raised"
+              >
+                <Mail size={13} /> Open in Gmail
+              </a>
+            )}
             {draft.status === "draft" && (
               <Button
                 variant="outline"
@@ -434,8 +532,162 @@ function DraftItem({ draft, onChanged }: { draft: Draft; onChanged: () => void }
               </Button>
             )}
           </div>
+          {draft.type !== "linkedin_message" && !app.contact_email && (
+            <p className="mt-1.5 text-[11px] text-ink-3">
+              Tip: add a contact email above and Gmail opens pre-addressed.
+            </p>
+          )}
         </div>
       )}
     </article>
+  );
+}
+
+/** Recruiter contact + next-interview panel: the "who" and "when" a CRM
+ * runs on. Saves on blur; the calendar link needs no OAuth. */
+function ContactAndInterview({ app, onChanged }: { app: Application; onChanged: () => void }) {
+  const toast = useToast();
+  const [name, setName] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [when, setWhen] = useState<string | null>(null);
+
+  const save = useMutation({
+    mutationFn: (patch: Record<string, unknown>) => api.applications.update(app.id, patch),
+    onSuccess: () => onChanged(),
+    onError: (error) => toast(error.message, "err"),
+  });
+
+  // datetime-local wants local time without the Z
+  const localValue = (iso: string | null) => {
+    if (!iso) return "";
+    const date = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
+  const interviewDate = app.interview_at ? new Date(app.interview_at) : null;
+
+  return (
+    <div className="mt-3 rounded-xl border border-line-soft bg-card p-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="flex items-center gap-1 text-[11px] tracking-wide text-ink-3 uppercase">
+            <UserRound size={10} /> Contact
+          </span>
+          <input
+            className={`${inputClass} mt-1`}
+            placeholder="Recruiter / referrer name"
+            value={name ?? app.contact_name}
+            onChange={(event) => setName(event.target.value)}
+            onBlur={() => {
+              if (name !== null && name !== app.contact_name) save.mutate({ contact_name: name });
+            }}
+          />
+        </label>
+        <label className="block">
+          <span className="text-[11px] tracking-wide text-ink-3 uppercase">Contact email</span>
+          <input
+            className={`${inputClass} mt-1`}
+            type="email"
+            placeholder="name@company.com"
+            value={email ?? app.contact_email}
+            onChange={(event) => setEmail(event.target.value)}
+            onBlur={() => {
+              if (email !== null && email !== app.contact_email) save.mutate({ contact_email: email });
+            }}
+          />
+        </label>
+      </div>
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <label className="block min-w-0 flex-1">
+          <span className="flex items-center gap-1 text-[11px] tracking-wide text-ink-3 uppercase">
+            <CalendarPlus size={10} /> Next interview
+          </span>
+          <input
+            className={`${inputClass} mt-1`}
+            type="datetime-local"
+            value={when ?? localValue(app.interview_at)}
+            onChange={(event) => setWhen(event.target.value)}
+            onBlur={() => {
+              if (when === null) return;
+              if (when === "") {
+                save.mutate({ clear_interview: true });
+                return;
+              }
+              const parsed = new Date(when);
+              if (Number.isNaN(parsed.getTime())) {
+                toast("That date didn't parse — try again", "err");
+                return;
+              }
+              save.mutate({ interview_at: parsed.toISOString() });
+            }}
+          />
+        </label>
+        {interviewDate && (
+          <a
+            href={calendarEventUrl({
+              title: `Interview: ${app.role}${app.company ? ` at ${app.company}` : ""}`,
+              start: interviewDate,
+              details: `Prep pack and notes in OfferLoop.${app.posting_url ? `\nPosting: ${app.posting_url}` : ""}`,
+              location: app.location,
+            })}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-accent/40 px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/10"
+          >
+            <CalendarPlus size={13} /> Add to Calendar
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PrepPackView({ pack }: { pack: NonNullable<Application["prep_pack"]> }) {
+  return (
+    <div className="mt-3 space-y-2">
+      <details className="group rounded-xl border border-line-soft bg-card" open>
+        <summary className="cursor-pointer p-3 text-sm font-medium text-ink select-none">
+          Likely questions <span className="text-ink-3">({pack.questions.length})</span>
+        </summary>
+        <ol className="space-y-3 border-t border-line-soft p-3">
+          {pack.questions.map((q, i) => (
+            <li key={i}>
+              <p className="text-sm font-medium text-ink">{q.question}</p>
+              {q.why_they_ask && <p className="mt-0.5 text-xs text-ink-3 italic">Why: {q.why_they_ask}</p>}
+              {q.how_to_answer && <p className="mt-0.5 text-[13px] text-ink-2">→ {q.how_to_answer}</p>}
+            </li>
+          ))}
+        </ol>
+      </details>
+      <details className="group rounded-xl border border-line-soft bg-card">
+        <summary className="cursor-pointer p-3 text-sm font-medium text-ink select-none">
+          Your stories <span className="text-ink-3">({pack.stories.length})</span>
+        </summary>
+        <div className="space-y-3 border-t border-line-soft p-3">
+          {pack.stories.map((story, i) => (
+            <div key={i}>
+              <p className="text-sm font-medium text-accent">{story.title}</p>
+              <p className="mt-0.5 text-[13px] text-ink-2">{story.outline}</p>
+              {story.metric && <p className="mt-0.5 text-xs text-offer">Land the number: {story.metric}</p>}
+            </div>
+          ))}
+        </div>
+      </details>
+      <details className="group rounded-xl border border-line-soft bg-card">
+        <summary className="cursor-pointer p-3 text-sm font-medium text-ink select-none">
+          Ask them <span className="text-ink-3">({pack.questions_to_ask.length})</span>
+        </summary>
+        <ul className="list-disc space-y-1.5 border-t border-line-soft p-3 pl-7 text-[13px] text-ink-2">
+          {pack.questions_to_ask.map((q, i) => (
+            <li key={i}>{q}</li>
+          ))}
+        </ul>
+      </details>
+      <p className="text-[11px] text-ink-3">
+        Built from this posting and your profile{pack.model && pack.model !== "template" ? ` by ${pack.model}` : ""} ·
+        facts only, nothing invented.
+      </p>
+    </div>
   );
 }

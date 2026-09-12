@@ -43,19 +43,32 @@ class MemoryRepo:
                     return app.model_copy(deep=True)
         return None
 
-    def list_applications(self, uid: str) -> list[Application]:
+    def list_applications(self, uid: str, include_deleted: bool = False) -> list[Application]:
         with self._lock:
-            apps = [a.model_copy(deep=True) for a in self._applications.get(uid, {}).values()]
+            apps = [
+                a.model_copy(deep=True)
+                for a in self._applications.get(uid, {}).values()
+                if include_deleted or a.deleted_at is None
+            ]
         return sorted(apps, key=lambda a: a.applied_at, reverse=True)
 
     def delete_application(self, uid: str, app_id: str) -> bool:
+        from ..models import utcnow
+
         with self._lock:
-            removed = self._applications.get(uid, {}).pop(app_id, None)
-            if removed:
-                user_drafts = self._drafts.get(uid, {})
-                for did in [d.id for d in user_drafts.values() if d.application_id == app_id]:
-                    user_drafts.pop(did, None)
-            return removed is not None
+            app = self._applications.get(uid, {}).get(app_id)
+            if app is None or app.deleted_at is not None:
+                return False
+            app.deleted_at = utcnow()
+            return True
+
+    def restore_application(self, uid: str, app_id: str) -> Application | None:
+        with self._lock:
+            app = self._applications.get(uid, {}).get(app_id)
+            if app is None:
+                return None
+            app.deleted_at = None
+            return app.model_copy(deep=True)
 
     # -- drafts ------------------------------------------------------------
     def put_draft(self, draft: Draft) -> None:
@@ -138,3 +151,15 @@ class MemoryRepo:
     def is_empty(self, uid: str) -> bool:
         with self._lock:
             return not self._applications.get(uid)
+
+    def delete_user_data(self, uid: str) -> None:
+        with self._lock:
+            for store in (
+                self._applications,
+                self._drafts,
+                self._nudges,
+                self._nudge_keys,
+                self._profiles,
+                self._reports,
+            ):
+                store.pop(uid, None)
