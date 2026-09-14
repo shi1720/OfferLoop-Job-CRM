@@ -6,7 +6,7 @@
 
 **Sales teams never forget to follow up. Now you won't either.**
 
-Built end-to-end on Google Cloud for **Code Kitchen Season 01** · Track: *AI Job Application Tracker*
+Built end-to-end on Google Cloud · Gemini on Vertex AI · One scale-to-zero container
 
 [![CI](https://github.com/shi1720/OfferLoop-Job-CRM/actions/workflows/ci.yml/badge.svg)](https://github.com/shi1720/OfferLoop-Job-CRM/actions/workflows/ci.yml)
 [![Gemini](https://img.shields.io/badge/Gemini-3.7%20Flash%20%2B%203.1%20Pro-4285F4)](backend/app/services/llm.py)
@@ -16,8 +16,7 @@ Built end-to-end on Google Cloud for **Code Kitchen Season 01** · Track: *AI Jo
 ### **[▶ Live — offerloop.web.app](https://offerloop.web.app)**
 
 *Cloud Run behind Firebase Hosting. Sign in with Google, then **Import → Load sample datasets →
-Run import** to fill your workspace through the evaluation pipeline. Also deployed on the
-[Code Kitchen sandbox](https://offerloop-g7qf54ykpa-uc.a.run.app) (us-central1) for evaluation.*
+Run import** to see a full pipeline in under a minute.*
 
 <img src="docs/screenshots/02-pipeline.png" alt="OfferLoop pipeline board" width="820" />
 
@@ -225,9 +224,8 @@ The infrastructure is the business model's friend: scale-to-zero Cloud Run + Fir
 
 ## Credits
 
-Built by **[Shivam Gupta](https://github.com/shi1720)** for Code Kitchen Season 01, with Claude
-(Anthropic) as pair programmer. Product concept, architecture direction, testing and iteration:
-Shivam.
+Built by **[Shivam Gupta](https://github.com/shi1720)**, with Claude (Anthropic) as pair
+programmer. Product concept, architecture direction, testing and iteration: Shivam.
 
 ## License
 

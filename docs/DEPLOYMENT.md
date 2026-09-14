@@ -63,7 +63,7 @@ fallback from the chain if preview access is limited on your project).
 
 ## Alternative: Gemini API key instead of Vertex
 
-For a hackathon sandbox without Vertex access, a [Google AI Studio](https://aistudio.google.com)
+For a project without Vertex AI access, a [Google AI Studio](https://aistudio.google.com)
 key works with zero code changes:
 
 ```bash
