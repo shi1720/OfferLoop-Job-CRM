@@ -495,7 +495,7 @@ function DraftItem({ draft, app, onChanged }: { draft: Draft; app: Application; 
       {open && (
         <div className="border-t border-line-soft p-3">
           <textarea
-            className={`${inputClass} min-h-44 resize-y font-[13px] leading-relaxed`}
+            className={`${inputClass} min-h-44 resize-y leading-relaxed sm:text-[13px]`}
             value={text}
             onChange={(event) => setText(event.target.value)}
           />

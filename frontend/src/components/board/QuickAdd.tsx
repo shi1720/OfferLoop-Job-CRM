@@ -39,7 +39,7 @@ export function QuickAdd({ onCaptured }: { onCaptured: (posting: CapturedPosting
       >
         <Link2 size={15} className="shrink-0 text-ink-3" />
         <input
-          className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-3"
+          className="min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-ink-3 sm:text-sm"
           placeholder="Paste a job link or the whole description — Gemini fills in the card"
           value={value}
           onChange={(event) => {

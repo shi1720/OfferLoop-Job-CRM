@@ -84,7 +84,7 @@ export function EngineCard() {
         >
           <div className="flex gap-2">
             <input
-              className={`${inputClass} flex-1 font-mono text-[13px]`}
+              className={`${inputClass} min-w-0 flex-1 font-mono`}
               type="password"
               placeholder="Paste your Gemini API key (AIza…)"
               value={key}

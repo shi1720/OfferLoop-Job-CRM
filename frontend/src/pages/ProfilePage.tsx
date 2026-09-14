@@ -119,12 +119,12 @@ export default function ProfilePage() {
           />
         </Field>
 
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="flex items-center gap-1.5 text-[11px] text-ink-3">
             <Sparkles size={12} className="text-accent" />
             Facts only — Gemini is instructed never to invent achievements.
           </p>
-          <Button type="submit" variant="primary" disabled={save.isPending}>
+          <Button type="submit" variant="primary" disabled={save.isPending} className="w-full sm:w-auto">
             {save.isPending ? <Spinner className="border-on-accent/30 border-t-on-accent" /> : <Save size={15} />}
             Save profile
           </Button>

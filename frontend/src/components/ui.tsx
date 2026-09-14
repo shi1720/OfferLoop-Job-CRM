@@ -14,7 +14,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-45",
+        "inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-45",
         "px-3.5 py-2",
         variant === "primary" &&
           "bg-accent text-on-accent shadow-[0_2px_12px_-4px_var(--color-accent)] hover:bg-accent-strong",
@@ -144,7 +144,7 @@ export function Modal({
 }
 
 export const inputClass =
-  "w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:border-accent/60 focus:outline-none transition-colors";
+  "w-full rounded-lg border border-line bg-card px-3 py-2 text-base text-ink placeholder:text-ink-3 focus:border-accent/60 focus:outline-none transition-colors sm:text-sm";
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

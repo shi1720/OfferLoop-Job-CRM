@@ -193,7 +193,7 @@ export function DataCard() {
             </div>
           </div>
         ) : (
-          <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <p className="text-[13px] text-ink-2">Delete your account data and start from zero.</p>
             <Button variant="danger" onClick={() => setConfirming(true)}>
               Delete my data…
