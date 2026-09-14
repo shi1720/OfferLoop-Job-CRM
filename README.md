@@ -13,10 +13,11 @@ Built end-to-end on Google Cloud for **Code Kitchen Season 01** · Track: *AI Jo
 [![Cloud Run](https://img.shields.io/badge/deploy-Cloud%20Run-blue)](infra/deploy.sh)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-### **[▶ Live demo — offerloop on Cloud Run](https://offerloop-g7qf54ykpa-uc.a.run.app)**
+### **[▶ Live — offerloop.web.app](https://offerloop.web.app)**
 
-*Deployed on the Code Kitchen sandbox (us-central1). Sign in with Google, then **Import → Load
-sample datasets → Run import** to fill your workspace through the evaluation pipeline.*
+*Cloud Run behind Firebase Hosting. Sign in with Google, then **Import → Load sample datasets →
+Run import** to fill your workspace through the evaluation pipeline. Also deployed on the
+[Code Kitchen sandbox](https://offerloop-g7qf54ykpa-uc.a.run.app) (us-central1) for evaluation.*
 
 <img src="docs/screenshots/02-pipeline.png" alt="OfferLoop pipeline board" width="820" />
 

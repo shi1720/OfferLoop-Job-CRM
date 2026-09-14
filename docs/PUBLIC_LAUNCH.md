@@ -70,9 +70,10 @@ becomes `https://<site>.web.app`.
 
 Then point auth at the new domain:
 
-1. Firebase console → Authentication → Settings → **Authorized domains**:
-   `*.web.app` sites are authorized automatically; custom domains must be
-   added here.
+1. Firebase console → Authentication → Settings → **Authorized domains** →
+   add `<site>.web.app`. (Only the project's *default* domains are
+   pre-authorized; an additional Hosting site's domain must be added, or
+   sign-in fails with `auth/unauthorized-domain`.)
 2. Update the served web config so the login popup uses the new host:
 
    ```bash

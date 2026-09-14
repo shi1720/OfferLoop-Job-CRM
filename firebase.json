@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "offerloop",
     "public": "infra/hosting",
     "ignore": ["**/.*"],
     "rewrites": [
